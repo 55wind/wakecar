@@ -166,7 +166,7 @@ def step_start():
     except Exception as e:
         print('  seat preset failed:', e)
     adb('logcat', '-c')
-    adb('shell', 'am', 'start', '-n', 'kr.contest.wakecar/.MainActivity')
+    adb('shell', 'am', 'start', '--user', 'current', '-n', 'kr.contest.wakecar/.MainActivity')
     time.sleep(5)
     show('시작 화면'); shot('01_setup')
 
@@ -183,7 +183,7 @@ def step_block():
 
 def step_sleep():
     car(' (낮잠 전)')
-    tap('꺼짐'); time.sleep(1.0)
+    tap('시연 모드'); time.sleep(1.0)
     show('시연 모드 켬'); shot('03_setup_demo')
     tap('낮잠 시작'); time.sleep(3.5)
     show('자는 중'); shot('04_sleeping'); car(' (자는 중)')
