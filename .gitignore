@@ -1,0 +1,48 @@
+# Android / Gradle
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+*.keystore
+*.jks
+
+# 제출용 APK 는 apk/ 폴더에 커밋한다 (공모전 요구사항). 그 외 APK 는 무시.
+*.apk
+!apk/*.apk
+
+# 참고용으로 복제한 Pleos 샘플 앱 (별도 저장소)
+/reference/samples/
+/reference/*.log
+
+# Claude Code local
+.claude/settings.local.json
+
+# gstack browse daemon state
+/.gstack/
+
+# 접수양식(기획서) DOCX 는 01 참가신청서에 팀원 실명·연락처·서명이 들어 있어 저장소에 올리지 않는다.
+/*.docx
+/docs/submission/
+
+# release 서명 키와 비밀번호 (저장소에 올리지 않는다. 잃어버리면 같은 서명으로 업데이트할 수 없다)
+/keystore/
+/keystore.properties
+
+# 공모전 사이트와 Pleos 문서 사본 (재배포하지 않는다)
+/docs/reference/
+
+# 작업 메모와 제출 서류 초안 (저장소에는 앱과 실행에 필요한 것만 둔다)
+/CLAUDE.md
+/.claude/
+/docs/wakecar-spec.md
+/docs/contest-brief.md
+/docs/forms/
+/tools/build_proposal.py
+/demo/

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Pleos Vehicle SDK 퍼미션. 실제로 호출하는 도메인만 선언한다
+      (불필요한 퍼미션 선언은 앱 심사 거부 사유).
+
+      읽기
+        CAR_DRIVE              기어(P 확인), 브레이크 페달(기상 미션)
+        CAR_DOORS              문 열림·잠금
+        CAR_ENERGY             배터리·연료 잔량, 충전구
+        CAR_WINDOWS            운전석 창문 위치·와이퍼(기상 미션)
+        READ_WINDSHIELD_WIPERS 와이퍼 작동 상태(기상 미션)
+        CAR_SEATS              등받이 위치
+        CAR_LIGHTS             무드등 밝기
+        CAR_CLIMATE            내·외기, 풍량
+      제어 (Vehicle Control 승인 범위. 주행 제어는 쓰지 않는다)
+        CONTROL_CAR_SEATS      등받이 젖히기·세우기
+        CONTROL_CAR_LIGHTS     무드등 밝기
+        CONTROL_CAR_CLIMATE    외기 전환, 풍량
+    -->
+    <!-- 기어(P 확인)는 Android Automotive 표준 속성 GEAR_SELECTION 을 먼저 읽는다 (SDK 2.3.2 안내). -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
+    <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
+    <uses-permission android:name="pleos.car.permission.READ_WINDSHIELD_WIPERS" />
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
+    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
+
+    <!-- 음성 안내에 쓰는 Android 기본 TTS 엔진을 찾기 위한 선언 (API 30+). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".WakeCarApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.WakeCar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.WakeCar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
