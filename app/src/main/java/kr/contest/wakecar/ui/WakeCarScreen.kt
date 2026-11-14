@@ -120,7 +120,7 @@ fun WakeCarTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun WakeCarScreen(ui: UiState, controller: NapController) {
+fun WakeCarScreen(ui: UiState, controller: NapController, onRequestSpeed: () -> Unit = {}) {
     val phase = ui.nap.phase
     val asleep = phase == Phase.SLEEPING
     val background = when {
@@ -142,10 +142,11 @@ fun WakeCarScreen(ui: UiState, controller: NapController) {
         CompositionLocalProvider(LocalDensity provides Density(scale, system.fontScale)) {
             Box(modifier = Modifier.fillMaxSize().padding(horizontal = 56.dp, vertical = 36.dp)) {
                 when (phase) {
-                    Phase.SETUP -> SetupScreen(ui, controller)
+                    Phase.SETUP -> SetupScreen(ui, controller, onRequestSpeed)
                     Phase.SLEEPING -> SleepingScreen(ui, controller)
                     Phase.WAKING -> WakingScreen(ui, controller)
                     Phase.GUARD -> GuardScreen(ui, controller)
+                    Phase.REST -> RestScreen(ui, controller)
                     Phase.DONE -> DoneScreen(ui, controller)
                 }
             }
@@ -159,7 +160,7 @@ private const val DESIGN_WIDTH_DP = 1280f
 // ------------------------------------------------------------------ 시작 화면
 
 @Composable
-private fun SetupScreen(ui: UiState, c: NapController) {
+private fun SetupScreen(ui: UiState, c: NapController, onRequestSpeed: () -> Unit) {
     val napMinutes = ui.plan.napMinutes(ui.clockMinuteOfDay)
     val canStart = ui.startBlock == null && napMinutes != null
 
@@ -253,6 +254,11 @@ private fun SetupScreen(ui: UiState, c: NapController) {
                 Spacer(Modifier.height(14.dp))
                 Notice(blockMessage(it), Tone.Danger)
             }
+            if (ui.startBlock == null && ui.vehicle.driverDoorLocked == false) {
+                // 앱이 문을 직접 잠그지는 않는다. 잠그고 쉬도록 안내만 한다.
+                Spacer(Modifier.height(14.dp))
+                Notice("문이 잠겨 있지 않아요. 문을 잠그고 쉬세요.", Tone.Dawn)
+            }
 
             Spacer(Modifier.height(18.dp))
             if (ui.vehicle.runsOnFuel == true) {
@@ -270,6 +276,19 @@ private fun SetupScreen(ui: UiState, c: NapController) {
             Panel("시작 전 확인") {
                 val v = ui.vehicle
                 StatusRow("기어", v.inPark?.let { if (it) "P" else "P에 놓아 주세요" }, good = v.inPark)
+                val moving = v.moving
+                if (moving != null) {
+                    StatusRow("속도", if (moving) "움직이는 중" else "0km/h", good = !moving)
+                } else {
+                    // 속도는 허용해야 읽을 수 있다. 허용하지 않으면 기어 P만으로 정차를 확인한다.
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onRequestSpeed),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("속도", color = Tone.TextSoft, style = Type.Body, modifier = Modifier.weight(1f))
+                        Text("허용하면 확인해요", color = Tone.Periwinkle, style = Type.Label)
+                    }
+                }
                 StatusRow("문", v.anyDoorOpen?.let { if (it) "열려 있어요" else "닫힘" }, good = v.anyDoorOpen?.not())
                 StatusRow("문 잠금", v.driverDoorLocked?.let { if (it) "잠김" else "잠그고 주무세요" }, good = v.driverDoorLocked)
                 StatusRow(
@@ -286,43 +305,51 @@ private fun SetupScreen(ui: UiState, c: NapController) {
                 }
                 Text("등받이는 직접 젖혀 주세요. 앱은 등받이를 뒤로 젖히지 않습니다.", color = Tone.TextMuted, style = Type.Caption)
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(CardShape)
-                    .clickable(role = Role.Switch) { c.setDemo(!ui.demo) }
-                    .padding(horizontal = 28.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("시연 모드", color = Tone.Text, style = Type.Label)
-                    Text("낮잠 1분을 2초로 줄입니다.", color = Tone.TextMuted, style = Type.Caption)
-                }
-                Text(
-                    if (ui.demo) "켜짐" else "꺼짐",
-                    color = if (ui.demo) Tone.Periwinkle else Tone.TextMuted,
-                    style = Type.Label,
-                )
-                Switch(
-                    checked = ui.demo,
-                    onCheckedChange = { c.setDemo(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedTrackColor = Tone.Violet,
-                        checkedThumbColor = Tone.Text,
-                        uncheckedTrackColor = Tone.CardHigh,
-                        uncheckedThumbColor = Tone.TextMuted,
-                        uncheckedBorderColor = Tone.Border,
-                    ),
-                )
-            }
+            ToggleRow(
+                title = "등받이 일으키기",
+                caption = if (ui.support.seat == true) "깨워도 반응이 없으면 등받이를 조금씩 세웁니다." else "이 차에서는 쓸 수 없어요.",
+                checked = ui.seatRaise,
+                onToggle = { if (ui.support.seat == true) c.setSeatRaise(!ui.seatRaise) },
+            )
+            ToggleRow("시연 모드", "낮잠 1분을 2초로 줄입니다.", ui.demo, onToggle = { c.setDemo(!ui.demo) })
         }
+    }
+}
+
+@Composable
+private fun ToggleRow(title: String, caption: String, checked: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardShape)
+            .clickable(role = Role.Switch, onClick = onToggle)
+            .padding(horizontal = 28.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = Tone.Text, style = Type.Label)
+            Text(caption, color = Tone.TextMuted, style = Type.Caption)
+        }
+        Text(if (checked) "켜짐" else "꺼짐", color = if (checked) Tone.Periwinkle else Tone.TextMuted, style = Type.Label)
+        Switch(
+            checked = checked,
+            onCheckedChange = { onToggle() },
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = Tone.Violet,
+                checkedThumbColor = Tone.Text,
+                uncheckedTrackColor = Tone.CardHigh,
+                uncheckedThumbColor = Tone.TextMuted,
+                uncheckedBorderColor = Tone.Border,
+            ),
+        )
     }
 }
 
 private fun blockMessage(block: StartBlock): String = when (block) {
     StartBlock.NOT_CONNECTED -> "차량 정보를 읽고 있어요."
     StartBlock.NOT_IN_PARK -> "기어를 P에 놓으면 시작할 수 있어요."
+    StartBlock.MOVING -> "차가 멈추면 시작할 수 있어요."
     StartBlock.DOOR_OPEN -> "문을 닫으면 시작할 수 있어요."
     StartBlock.LOW_ENERGY -> "배터리나 연료가 15% 아래라 쉬어 가기 어려워요."
 }
@@ -372,7 +399,11 @@ private fun SleepingScreen(ui: UiState, c: NapController) {
 private fun WakingScreen(ui: UiState, c: NapController) {
     val nap = ui.nap
     val mission = nap.mission ?: return
-    Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(56.dp)) {
+    Row(
+        // 화면을 누르면 등받이만 멈춘다. 알람은 계속 울린다.
+        modifier = Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures(onTap = { c.stopSeatRaise() }) },
+        horizontalArrangement = Arrangement.spacedBy(56.dp),
+    ) {
         Column(
             modifier = Modifier.weight(1.5f).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
@@ -381,6 +412,7 @@ private fun WakingScreen(ui: UiState, c: NapController) {
                 text = when {
                     nap.realarmCount > 0 -> "다시 잠드신 것 같아요"
                     nap.wokenEarlyForEnergy -> "배터리가 부족해 일찍 깨웠어요"
+                    nap.wokenEarlyForPower -> "차량 전원이 곧 꺼져서 일찍 깨웠어요"
                     else -> "일어날 시간이에요"
                 },
                 color = Tone.Dawn,
@@ -420,7 +452,7 @@ private fun WakingScreen(ui: UiState, c: NapController) {
             Panel("깨우기 ${nap.stage}단계") {
                 StageRow(1, "조명 밝히기", nap.stage)
                 StageRow(2, "알람과 깨어남 미션", nap.stage)
-                StageRow(3, "바람 세게, 알람 빠르게", nap.stage)
+                StageRow(3, if (ui.seatRaise) "등받이 세우기, 바람, 알람" else "바람 세게, 알람 빠르게", nap.stage)
                 StageRow(4, "알람 최대", nap.stage)
             }
             EmergencyStop(onStop = c::emergencyStop)
@@ -480,6 +512,41 @@ private fun GuardScreen(ui: UiState, c: NapController) {
     }
 }
 
+// ------------------------------------------------------------------ 깬 뒤 쉬는 시간
+
+@Composable
+private fun RestScreen(ui: UiState, c: NapController) {
+    val left = ui.restSecondsLeft
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("깬 직후에는 반응이 느릴 수 있어요", color = Tone.Periwinkle, style = Type.Title)
+        Text("10분만 바람 쐬고 출발해요", color = Tone.Text, style = Type.Display, textAlign = TextAlign.Center)
+        Text(
+            "창문을 열어 바깥 바람을 쐬거나 차 밖에서 잠깐 걸어 보세요.",
+            color = Tone.TextSoft,
+            style = Type.Body,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = when {
+                left <= 0 -> "이제 출발해도 좋아요."
+                left >= 60 -> "${(left + 59) / 60}분 남았어요."
+                else -> "${left}초 남았어요."
+            },
+            color = Tone.TextMuted,
+            style = Type.Title,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            GhostButton("운전하지 않아요. 끝내기", onClick = c::endRest, modifier = Modifier.heightIn(min = 96.dp))
+            PrimaryButton("출발할게", enabled = left <= 0, onClick = c::depart, modifier = Modifier.width(320.dp))
+        }
+        Text("출발 여부는 언제나 운전자가 정합니다.", color = Tone.TextMuted, style = Type.Caption)
+    }
+}
+
 // ------------------------------------------------------------------ 끝
 
 @Composable
@@ -502,7 +569,8 @@ private fun DoneScreen(ui: UiState, c: NapController) {
         }
         Text(
             text = when (nap.endReason) {
-                EndReason.COMPLETED -> "10분만 바람 쐬고 움직이세요"
+                EndReason.COMPLETED -> "조심히 다녀오세요"
+                EndReason.MOVED -> "차가 움직여 낮잠을 끝냈어요"
                 EndReason.DOOR_OPENED -> "문이 열려 낮잠을 끝냈어요"
                 EndReason.BRAKE_PRESSED -> "브레이크를 밟아 낮잠을 끝냈어요"
                 EndReason.LEFT_CAR -> "잘 다녀오세요"
@@ -521,8 +589,27 @@ private fun DoneScreen(ui: UiState, c: NapController) {
         }
         if (nap.chargeReminder) Notice("충전이 끝났는지 확인하고 충전 케이블을 분리해 주세요.", Tone.Dawn)
         Text("조명과 공조를 낮잠 전 상태로 되돌렸어요.", color = Tone.TextMuted, style = Type.Caption)
+        StatsLine(ui)
         PrimaryButton("처음으로", onClick = c::reset, modifier = Modifier.width(340.dp))
     }
+}
+
+/** 이 차에만 저장한 익명 기록. 효과를 재는 데 쓴다. */
+@Composable
+private fun StatsLine(ui: UiState) {
+    val st = ui.stats
+    if (st.woken == 0) return
+    val parts = buildList {
+        add("지금까지 ${st.woken}번 깨웠어요")
+        st.realarmPercent?.let { add("다시 잠들어 한 번 더 깨운 비율 $it%") }
+        st.restFilledPercent?.let { add("권장 휴식을 채우고 출발한 비율 $it%") }
+    }
+    Text(
+        "내 휴식 기록(이 차에만 저장): " + parts.joinToString(", "),
+        color = Tone.TextMuted,
+        style = Type.Caption,
+        textAlign = TextAlign.Center,
+    )
 }
 
 // ------------------------------------------------------------------ 공통 부품

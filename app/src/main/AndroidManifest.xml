@@ -20,16 +20,27 @@
     -->
     <!-- 기어(P 확인)는 Android Automotive 표준 속성 GEAR_SELECTION 을 먼저 읽는다 (SDK 2.3.2 안내). -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- 정차 확인: 표준 속성 PERF_VEHICLE_SPEED 로 차량 속도 0을 함께 확인한다. -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
     <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
     <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
+    <!-- 전원 차단 경고(Safety): 뜨면 자는 중이라도 바로 깨운다. -->
+    <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
     <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
     <uses-permission android:name="pleos.car.permission.READ_WINDSHIELD_WIPERS" />
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
     <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
+    <!-- 등받이 일으키기(기본 꺼짐): 세우는 방향으로만 움직인다. 뒤로 젖히지 않는다. -->
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_SEATS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
+
+    <!-- 낮잠 중 다른 화면으로 넘어가도 알람이 울리도록 서비스를 켜 둔다. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- 음성 안내에 쓰는 Android 기본 TTS 엔진을 찾기 위한 선언 (API 30+). -->
     <queries>
@@ -57,6 +68,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".NapService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
 </manifest>

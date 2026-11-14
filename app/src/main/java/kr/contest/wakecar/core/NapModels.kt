@@ -1,7 +1,7 @@
 package kr.contest.wakecar.core
 
 /** 낮잠 한 번의 진행 단계. */
-enum class Phase { SETUP, SLEEPING, WAKING, GUARD, DONE }
+enum class Phase { SETUP, SLEEPING, WAKING, GUARD, REST, DONE }
 
 /** 깨어남 미션. 화면을 눌러서는 알람이 꺼지지 않고, 차량 조작이 감지되어야 멈춘다. */
 enum class Mission(val prompt: String, val steps: Int) {
@@ -16,6 +16,8 @@ enum class EndReason {
     LEFT_CAR,
     USER_ENDED,
     GEAR_LEFT_PARK,
+    /** 차가 움직임. */
+    MOVED,
     /** 자는 중 문이 열림. */
     DOOR_OPENED,
     /** 자는 중 브레이크를 밟음. */
@@ -23,7 +25,7 @@ enum class EndReason {
     EMERGENCY_STOP,
 }
 
-enum class StartBlock { NOT_CONNECTED, NOT_IN_PARK, DOOR_OPEN, LOW_ENERGY }
+enum class StartBlock { NOT_CONNECTED, NOT_IN_PARK, MOVING, DOOR_OPEN, LOW_ENERGY }
 
 enum class FanLevel { MEDIUM, MAX }
 
@@ -31,6 +33,8 @@ enum class FanLevel { MEDIUM, MAX }
 data class VehicleSnapshot(
     val connected: Boolean = false,
     val inPark: Boolean? = null,
+    /** 차량 속도가 0이 아닌지. */
+    val moving: Boolean? = null,
     val brakePressed: Boolean? = null,
     val anyDoorOpen: Boolean? = null,
     val driverDoorLocked: Boolean? = null,
@@ -42,6 +46,8 @@ data class VehicleSnapshot(
     /** 연료로 달리는 차(엔진차)인지. 배터리 잔량 대신 연료량만 읽히면 true. */
     val runsOnFuel: Boolean? = null,
     val chargePortOpen: Boolean? = null,
+    /** 차량 전원 차단 경고가 켜졌는지. */
+    val powerDownWarning: Boolean? = null,
 )
 
 /**
@@ -51,6 +57,8 @@ data class VehicleSnapshot(
 sealed interface Effect {
     data class AmbientLight(val percent: Int) : Effect
     data class Fan(val level: FanLevel) : Effect
+    /** 등받이 일으키기. 세우는 방향으로만 조금씩 움직인다. off = 즉시 멈춤. */
+    data class SeatRaise(val on: Boolean) : Effect
     /** 0 = 끔, 1~3 = 점점 크고 빠르게. */
     data class Alarm(val level: Int) : Effect
     data class Speak(val text: String) : Effect
@@ -78,6 +86,8 @@ data class NapTimings(
     val guardMs: Long,
     /** '5분만 더'로 미루는 시간. 한 번만 쓸 수 있다. */
     val snoozeMs: Long,
+    /** 깬 뒤 다시 운전하기 전에 쉬기를 권하는 시간. */
+    val restMs: Long,
 ) {
     companion object {
         val REAL = NapTimings(
@@ -87,6 +97,7 @@ data class NapTimings(
             stage4AfterMs = 5 * 60_000,
             guardMs = 3 * 60_000,
             snoozeMs = 5 * 60_000,
+            restMs = 10 * 60_000,
         )
 
         /** 시연 모드: 낮잠 1분을 2초로 줄이고, 깨우기 단계 간격도 짧게 잡는다. */
@@ -97,6 +108,7 @@ data class NapTimings(
             stage4AfterMs = 20_000,
             guardMs = 20_000,
             snoozeMs = 10_000,
+            restMs = 20_000,
         )
     }
 }
@@ -110,6 +122,8 @@ data class NapState(
     val mission: Mission? = null,
     val missionStep: Int = 0,
     val guardDeadline: Long = 0,
+    /** 이 시각이 지나야 '출발할게'를 누를 수 있다. */
+    val restUntil: Long = 0,
     val question: Question? = null,
     val questionNumber: Int = 0,
     val questionCount: Int = 0,
@@ -118,6 +132,12 @@ data class NapState(
     /** 미션을 하고도 다시 잠들어 한 번 더 깨운 횟수. */
     val realarmCount: Int = 0,
     val wokenEarlyForEnergy: Boolean = false,
+    /** 전원 차단 경고로 일찍 깨웠는지. */
+    val wokenEarlyForPower: Boolean = false,
+    /** 알람으로 깨운 적이 있는지(자는 중 바로 끝난 낮잠과 구분). */
+    val woken: Boolean = false,
+    /** 권장 휴식을 채우고 출발했는지. null = 쉬는 시간 없이 끝남 또는 다시 운전하지 않음. */
+    val restCompleted: Boolean? = null,
     val endReason: EndReason? = null,
     val sleptMs: Long = 0,
     /** 알람부터 첫 미션 완료까지 걸린 시간. */

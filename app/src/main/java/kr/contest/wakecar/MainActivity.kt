@@ -23,7 +23,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controller.onAppOpened()
-
         setContent {
             val ui by controller.ui.collectAsStateWithLifecycle()
 
@@ -39,13 +38,25 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            WakeCarTheme { WakeCarScreen(ui, controller) }
+            WakeCarTheme {
+                // 차량 속도는 사용자가 허용해야 읽을 수 있다. 시작 화면에서 눌렀을 때만 묻는다.
+                WakeCarScreen(ui, controller, onRequestSpeed = { requestPermissions(arrayOf(SPEED_PERMISSION), 1) })
+            }
         }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        controller.onPermissionChanged()
     }
 
     override fun onDestroy() {
         if (isFinishing) controller.onAppClosed()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val SPEED_PERMISSION = "android.car.permission.CAR_SPEED"
     }
 
     private fun screenBrightness(nap: NapState): Float = when {

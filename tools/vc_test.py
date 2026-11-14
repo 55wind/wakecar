@@ -159,8 +159,26 @@ def answer_questions():
         time.sleep(1.0)
 
 
+def front():
+    """기어를 D로 바꾸면 Pleos 내비 화면이 앞으로 나온다. 우리 앱을 다시 앞으로 부른다."""
+    adb('shell', 'am', 'start', '--user', 'current', '-n', 'kr.contest.wakecar/.MainActivity')
+    time.sleep(2.5)
+
+
 def step_install():
     print(adb('install', '-r', APK).strip().splitlines()[-1])
+    # 속도 읽기 허용을 미리 해 둔다(허용 창이 흐름을 가리지 않도록).
+    adb('shell', 'pm', 'grant', '--user', 'current', 'kr.contest.wakecar', 'android.car.permission.CAR_SPEED')
+
+
+def step_speed():
+    front()
+    http('PUT', '/vehicle/controls', speed=20, accelerator=0, brake=0); time.sleep(3.0)
+    ts = show('속도 20')
+    print('  속도가 있으면 시작 막힘:', any('차가 멈추면' in t for t in ts))
+    http('PUT', '/vehicle/controls', speed=0, accelerator=0, brake=0); time.sleep(3.0)
+    ts = show('속도 0')
+    print('  속도 0이면 시작 가능:', not any('차가 멈추면' in t for t in ts))
 
 
 def step_start():
@@ -183,6 +201,7 @@ def step_block():
     http('PUT', '/vehicle/gear', gear='Drive'); time.sleep(2.5)
     show('기어 D'); shot('02_block_drive')
     http('PUT', '/vehicle/gear', gear='Park'); time.sleep(2.5)
+    front()
     http('PUT', '/vehicle/body', door_fl=1); time.sleep(2.5)
     show('문 열림')
     http('PUT', '/vehicle/body', door_fl=0); time.sleep(2.5)
@@ -190,6 +209,7 @@ def step_block():
 
 
 def step_sleep():
+    front()
     car(' (낮잠 전)')
     tap('시연 모드'); time.sleep(1.0)
     show('시연 모드 켬'); shot('03_setup_demo')
@@ -249,6 +269,9 @@ def step_realarm():
 
 def step_finish():
     answer_questions(); time.sleep(1.5)
+    show('쉬는 시간'); shot('10_rest')
+    wait_for('이제 출발해도', 40)
+    tap('출발할게'); time.sleep(1.5)
     show('끝'); shot('10_done'); car(' (끝난 뒤)')
     tap('처음으로'); time.sleep(1.0)
 
@@ -259,10 +282,43 @@ def step_gear():
     http('PUT', '/vehicle/gear', gear='Drive'); time.sleep(2.5)
     show('기어 D로 바꿈'); shot('11_gear_end'); car(' (P 이탈 뒤)')
     http('PUT', '/vehicle/gear', gear='Park'); time.sleep(1.5)
+    front()
     tap('처음으로')
 
 
-STEPS = dict(install=step_install, start=step_start, block=step_block, sleep=step_sleep,
+def step_extra():
+    """흐름에 들어 있지 않은 것: 속도 0 확인, 낮잠 중 서비스, 등받이 일으키기 미리 보기, 5분만 더."""
+    front()
+    http('PUT', '/vehicle/controls', speed=20, accelerator=0, brake=0); time.sleep(2.5)
+    ts = show('속도 20')
+    print('  속도가 있으면 시작 막힘:', any('차가 멈추면' in t for t in ts))
+    http('PUT', '/vehicle/controls', speed=0, accelerator=0, brake=0); time.sleep(2.5)
+    front()
+    before = state()['seat']['positions']['recline']['driver']
+    tap('등받이 일으키기'); time.sleep(2.5)
+    after = state()['seat']['positions']['recline']['driver']
+    print('  등받이 일으키기 미리 보기: %s -> %s' % (before, after))
+    tap('낮잠 시작'); time.sleep(3.0)
+    out = adb('shell', 'dumpsys', 'activity', 'services', 'kr.contest.wakecar')
+    print('  낮잠 중 서비스 실행:', 'NapService' in out)
+    ts = wait_for('꺼지지 않아요', 60)
+    do_mission(ts); time.sleep(1.5)
+    tap('5분만 더'); time.sleep(2.0)
+    show('5분만 더 누른 뒤')
+    ts = wait_for('꺼지지 않아요', 40)
+    print('  5분만 더 뒤 다시 알람:', bool(ts))
+    do_mission(ts); time.sleep(1.5)
+    ts = show('두 번째 미션 뒤')
+    print('  5분만 더 버튼이 사라짐:', not any('5분만 더' in t for t in ts))
+    answer_questions(); time.sleep(1.0)
+    tap('끝내기'); time.sleep(1.5)
+    out = adb('shell', 'dumpsys', 'activity', 'services', 'kr.contest.wakecar')
+    print('  끝난 뒤 서비스 종료:', 'NapService' not in out)
+    tap('처음으로'); time.sleep(1.0)
+    tap('등받이 일으키기'); time.sleep(1.0)
+
+
+STEPS = dict(extra=step_extra, speed=step_speed, install=step_install, start=step_start, block=step_block, sleep=step_sleep,
              interrupt=step_interrupt, wake=step_wake, stage3=step_stage3, mission=step_mission,
              realarm=step_realarm, finish=step_finish, gear=step_gear)
 names = sys.argv[1:] or ['all']

@@ -46,3 +46,6 @@
 /docs/forms/
 /tools/build_proposal.py
 /demo/
+
+# 옛 동작(등받이 젖힘, 외기) 기준 그림. 기획서 v2와 맞지 않아 저장소에서 뺌
+/docs/figures/

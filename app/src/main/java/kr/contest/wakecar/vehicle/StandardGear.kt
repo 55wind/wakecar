@@ -16,13 +16,23 @@ import android.util.Log
  *
  * @param onPark true = P, false = P 아님, null = 알 수 없음
  */
-class StandardGear(private val context: Context, private val onPark: (Boolean?) -> Unit) {
+class StandardGear(
+    private val context: Context,
+    private val onPark: (Boolean?) -> Unit,
+    /** true = 차가 움직이는 중(속도가 0이 아님), null = 속도를 읽을 수 없음 */
+    private val onMoving: (Boolean?) -> Unit = {},
+) {
 
     private var car: Car? = null
     private var manager: CarPropertyManager? = null
 
     private val callback = object : CarPropertyManager.CarPropertyEventCallback {
-        override fun onChangeEvent(value: CarPropertyValue<*>) = publish(value.value as? Int)
+        override fun onChangeEvent(value: CarPropertyValue<*>) {
+            when (value.propertyId) {
+                VehiclePropertyIds.GEAR_SELECTION -> publish(value.value as? Int)
+                VehiclePropertyIds.PERF_VEHICLE_SPEED -> publishSpeed(value.value as? Float)
+            }
+        }
         override fun onErrorEvent(propertyId: Int, zone: Int) = Unit
     }
 
@@ -35,6 +45,14 @@ class StandardGear(private val context: Context, private val onPark: (Boolean?) 
         @Suppress("DEPRECATION")
         properties.registerCallback(callback, VehiclePropertyIds.GEAR_SELECTION, CarPropertyManager.SENSOR_RATE_ONCHANGE)
         publish(properties.getProperty<Int>(VehiclePropertyIds.GEAR_SELECTION, 0)?.value)
+        // 속도는 읽을 수 없는 차도 있다. 실패해도 기어 읽기는 그대로 둔다.
+        try {
+            @Suppress("DEPRECATION")
+            properties.registerCallback(callback, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_NORMAL)
+            publishSpeed(properties.getProperty<Float>(VehiclePropertyIds.PERF_VEHICLE_SPEED, 0)?.value)
+        } catch (t: Throwable) {
+            Log.w("WakeCar", "standard speed: ${t.message ?: t}")
+        }
         true
     } catch (t: Throwable) {
         Log.w("WakeCar", "standard gear: ${t.message ?: t}")
@@ -51,6 +69,10 @@ class StandardGear(private val context: Context, private val onPark: (Boolean?) 
         }
         manager = null
         car = null
+    }
+
+    private fun publishSpeed(metersPerSecond: Float?) {
+        onMoving(metersPerSecond?.let { kotlin.math.abs(it) > 0.3f })
     }
 
     private fun publish(gear: Int?) {

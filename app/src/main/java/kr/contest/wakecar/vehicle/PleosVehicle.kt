@@ -19,6 +19,7 @@ import ai.pleos.playground.vehicle.listener.EvBatteryStateOfChargeListener
 import ai.pleos.playground.vehicle.listener.EvChargePortOpenListener
 import ai.pleos.playground.vehicle.listener.FuelPercentListener
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
+import ai.pleos.playground.vehicle.listener.PowerDownWarningIndicatorListener
 import ai.pleos.playground.vehicle.listener.SeatBackrestAnglePositionListener
 import ai.pleos.playground.vehicle.listener.WindowPositionListener
 import ai.pleos.playground.vehicle.listener.WiperStateListener
@@ -39,8 +40,6 @@ data class CabinSupport(
     val seat: Boolean? = null,
     val ambientLight: Boolean? = null,
     val fan: Boolean? = null,
-    /** 차가 등받이를 세우는 것을 막았다(주행 기어 등). 운전자가 직접 세워야 한다. */
-    val seatLeftReclined: Boolean = false,
 )
 
 /**
@@ -71,12 +70,16 @@ class PleosVehicle(context: Context) {
     /** 기어는 표준 차량 속성 값을 먼저 쓰고, 없을 때만 Pleos 기어 API 값을 쓴다. */
     private var standardPark: Boolean? = null
     private var pleosPark: Boolean? = null
-    private val standardGear = StandardGear(context.applicationContext) { park ->
-        main.post {
-            standardPark = park
-            publishGear()
-        }
-    }
+    private val standardGear = StandardGear(
+        context.applicationContext,
+        onPark = { park ->
+            main.post {
+                standardPark = park
+                publishGear()
+            }
+        },
+        onMoving = { moving -> update { it.copy(moving = moving) } },
+    )
 
     private val driverSeat = SeatArea(SeatValue.ROW_1_LEFT)
     private var lockArea: DoorArea? = null
@@ -96,13 +99,7 @@ class PleosVehicle(context: Context) {
 
     // 제어용 상태
     private var seatPosition: Int? = null
-    private var seatStart: Int? = null
-    private var seatReclined = false
-    private var seatMoving = false
-    private var seatTowardStart = false
-    private var seatFeedback = false
-    private var seatMoveStartedAt = 0L
-    private var reclineMs = 0L
+    private var seatUpright: Int? = null
     private var ambientBounds: Map<SeatArea, AreaBounds<Int>> = emptyMap()
     private val ambientOriginal = mutableMapOf<SeatArea, Int>()
     private var fanArea: SeatArea? = null
@@ -122,6 +119,13 @@ class PleosVehicle(context: Context) {
         main.post(wiperPoll)
     }
 
+    /** 기어와 속도(표준 차량 속성) 읽기를 다시 건다. */
+    fun refreshStandard() {
+        if (!connected) return
+        standardGear.stop()
+        standardGear.start()
+    }
+
     fun close() {
         if (!connected) return
         main.removeCallbacksAndMessages(null)
@@ -138,6 +142,7 @@ class PleosVehicle(context: Context) {
         when (effect) {
             is Effect.AmbientLight -> setAmbient(effect.percent)
             is Effect.Fan -> setFan(effect.level)
+            is Effect.SeatRaise -> if (effect.on) startSeatRaise() else stopSeatRaise()
             Effect.RestoreAll -> {
                 restoreAmbient()
                 restoreFan()
@@ -191,6 +196,11 @@ class PleosVehicle(context: Context) {
         override fun onEvChargePortOpenUpdated(open: Boolean?) = update { it.copy(chargePortOpen = open) }
         override fun onFailed(e: Exception) = warn("charge port listener", e)
     }
+    private val powerDownListener = object : PowerDownWarningIndicatorListener {
+        override fun onPowerDownWarningIndicatorUpdated(on: Boolean?) = update { it.copy(powerDownWarning = on) }
+        override fun onFailed(e: Exception) = warn("power down listener", e)
+    }
+
     private val seatListener = object : SeatBackrestAnglePositionListener {
         override fun onSeatBackrestAnglePositionUpdated(position: Int?) {
             main.post { onSeatPosition(position) }
@@ -256,6 +266,12 @@ class PleosVehicle(context: Context) {
             ev.isEvChargePortOpen({ open -> update { it.copy(chargePortOpen = open) } }, { warn("charge port", it) })
             ev.registerEvChargePortOpen(chargePortListener)
         }
+        // 전원 차단 경고: 뜨면 자는 중이라도 바로 깨운다.
+        call("power down warning") {
+            val safety = vehicle.getSafety()
+            safety.hasPowerDownWarningIndicator({ on -> update { it.copy(powerDownWarning = on) } }, { warn("power down", it) })
+            safety.registerPowerDownWarningIndicator(powerDownListener)
+        }
         val fuel = vehicle.getFuel()
         call("fuel") {
             fuel.getFuelPercent({ onEnergy(ev = evPercent, fuel = it) }, { warn("fuel", it) })
@@ -275,6 +291,7 @@ class PleosVehicle(context: Context) {
             vehicle.getEvBattery().unregisterEvBatteryStateOfCharge(evListener)
             vehicle.getEvBattery().unregisterEvChargePortOpen(chargePortListener)
             vehicle.getFuel().unregisterFuelPercent(fuelListener)
+            vehicle.getSafety().unregisterPowerDownWarningIndicator(powerDownListener)
             vehicle.getSeat().unregisterSeatBackrestAnglePosition(driverSeat, seatListener)
         }
     }
@@ -369,7 +386,7 @@ class PleosVehicle(context: Context) {
                         call("seat position") {
                             seat.getCurrentSeatBackrestAnglePosition(
                                 driverSeat,
-                                { p -> main.post { seatPosition = p } },
+                                { p -> main.post { onSeatPosition(p) } },
                                 { warn("seat position", it) },
                             )
                             seat.registerSeatBackrestAnglePosition(driverSeat, seatListener)
@@ -416,109 +433,60 @@ class PleosVehicle(context: Context) {
         } || supportUpdate { it.copy(fan = false) }
     }
 
-    // 등받이: 움직임 명령(BACKWARD/FORWARD/STOP)만 있다.
-    // - 위치가 읽히는 차: 0.1초마다 위치를 읽어 정한 폭만큼 움직이면 멈추고, 세울 때는 처음 위치에서 멈춘다.
-    // - 위치가 읽히지 않는 차(에뮬레이터 포함): 짧은 시간만 젖히고, 세울 때는 젖힌 시간만큼 되돌린다.
-    // 위치 값은 클수록 세워진 상태이고 BACKWARD가 젖히는 방향이다(Android Automotive 기준).
+    // 등받이 일으키기: 세우는 방향(FORWARD)으로만 움직인다. 뒤로 젖히지 않는다.
+    // 한 번에 2초 이내로 움직이고 5초 이상 쉬며, 움직인 시간이 모두 10초가 되면 멈춘다.
+    // 위치가 읽히는 차에서는 기억해 둔 각도에 닿으면 더 일찍 멈춘다.
 
-    private fun reclineSeat() {
-        if (_support.value.seat != true || seatReclined || seatMoving) return
-        seatReclined = true
-        seatFeedback = false
-        reclineMs = 0
-        supportUpdate { it.copy(seatLeftReclined = false) }
-        readSeat { position ->
-            seatStart = position
-            moveSeat(MoveControl.BACKWARD, towardStart = false, maxMs = SEAT_MOVE_MAX_MS)
-            main.postDelayed(stopIfNoFeedback, SEAT_NO_FEEDBACK_MS)
-        }
-    }
+    private var raiseLeftMs = 0L
 
-    private fun restoreSeat() {
-        if (!seatReclined) return
-        seatReclined = false
-        if (seatMoving) stopSeat.run()
-        if (!seatFeedback) {
-            if (reclineMs > 0) moveSeat(MoveControl.FORWARD, towardStart = true, maxMs = reclineMs)
-            return
-        }
-        readSeat { position ->
-            val start = seatStart
-            if (start == null || position == null || abs(position - start) > 1) {
-                moveSeat(MoveControl.FORWARD, towardStart = true, maxMs = SEAT_MOVE_MAX_MS)
-            }
-        }
-    }
-
-    private fun readSeat(then: (Int?) -> Unit) {
-        val ok = call("seat position") {
-            vehicle.getSeat().getCurrentSeatBackrestAnglePosition(
-                driverSeat,
-                { p -> main.post { seatPosition = p; then(p) } },
-                { main.post { then(seatPosition) } },
-            )
-        }
-        if (!ok) then(seatPosition)
-    }
-
-    private fun moveSeat(direction: MoveControl, towardStart: Boolean, maxMs: Long) {
-        main.removeCallbacks(stopSeat)
-        seatMoving = true
-        seatTowardStart = towardStart
-        seatMoveStartedAt = SystemClock.elapsedRealtime()
-        sendSeat(direction)
-        main.postDelayed(stopSeat, maxMs)
-        main.postDelayed(seatPoll, SEAT_POLL_MS)
-    }
-
-    private val seatPoll = object : Runnable {
+    private val raisePulse: Runnable = object : Runnable {
         override fun run() {
-            if (!seatMoving) return
-            readSeat { onSeatPosition(it) }
-            main.postDelayed(this, SEAT_POLL_MS)
+            val upright = seatUpright
+            val now = seatPosition
+            if (raiseLeftMs <= 0 || (upright != null && now != null && now >= upright)) {
+                raiseLeftMs = 0
+                return
+            }
+            val pulse = minOf(SEAT_RAISE_PULSE_MS, raiseLeftMs)
+            raiseLeftMs -= pulse
+            sendSeat(MoveControl.FORWARD)
+            main.postDelayed(stopPulse, pulse)
+            if (raiseLeftMs > 0) main.postDelayed(this, pulse + SEAT_RAISE_REST_MS)
         }
     }
 
-    private val stopSeat: Runnable = Runnable {
-        main.removeCallbacks(seatPoll)
-        main.removeCallbacks(stopIfNoFeedback)
-        if (seatMoving) {
-            seatMoving = false
-            if (!seatTowardStart) reclineMs = SystemClock.elapsedRealtime() - seatMoveStartedAt
-            sendSeat(MoveControl.STOP)
-        }
+    private val stopPulse = Runnable { sendSeat(MoveControl.STOP) }
+
+    private fun startSeatRaise() {
+        if (_support.value.seat != true) return
+        raiseLeftMs = SEAT_RAISE_TOTAL_MS
+        main.post(raisePulse)
     }
 
-    private val stopIfNoFeedback: Runnable = Runnable {
-        if (seatMoving && !seatTowardStart && !seatFeedback) {
-            main.removeCallbacks(stopSeat)
-            stopSeat.run()
-        }
+    private fun stopSeatRaise() {
+        raiseLeftMs = 0
+        main.removeCallbacks(raisePulse)
+        main.removeCallbacks(stopPulse)
+        sendSeat(MoveControl.STOP)
+    }
+
+    /** 처음 켤 때 깨어 있는 상태에서 한 번 보여 준다(1초). */
+    fun previewSeatRaise() {
+        if (!connected || _support.value.seat != true) return
+        sendSeat(MoveControl.FORWARD)
+        main.postDelayed(stopPulse, 1_000)
     }
 
     private fun sendSeat(control: MoveControl) {
-        val refused = { supportUpdate { it.copy(seatLeftReclined = control == MoveControl.FORWARD) } }
-        val ok = call("seat $control") {
-            vehicle.getSeat().moveSeatBackrestAngle(
-                driverSeat, control,
-                { _, _ -> },
-                { warn("seat $control", it); if (control == MoveControl.FORWARD) refused() },
-            )
+        call("seat $control") {
+            vehicle.getSeat().moveSeatBackrestAngle(driverSeat, control, { _, _ -> }, { warn("seat $control", it) })
         }
-        if (!ok && control == MoveControl.FORWARD) refused()
     }
 
+    /** 자기 전의 등받이 각도를 기억한다. 값이 클수록 세워진 상태이므로 낮잠 전에 본 가장 큰 값을 쓴다. */
     private fun onSeatPosition(position: Int?) {
         seatPosition = position
-        val start = seatStart
-        if (!seatMoving || position == null || start == null) return
-        val moved = abs(position - start)
-        if (!seatTowardStart && moved > 0) seatFeedback = true
-        val reached = if (seatTowardStart) moved <= 1 else moved >= SEAT_RECLINE_UNITS
-        if (reached && seatFeedback) {
-            main.removeCallbacks(stopSeat)
-            stopSeat.run()
-        }
+        if (position != null && raiseLeftMs == 0L) seatUpright = maxOf(seatUpright ?: position, position)
     }
 
     // 무드등: 처음 밝기를 읽어 둔 뒤 바꾸고, 끝나면 되돌린다.
@@ -663,12 +631,8 @@ class PleosVehicle(context: Context) {
     private companion object {
         const val TAG = "WakeCar"
         const val WIPER_POLL_MS = 700L
-        /** 등받이를 한 번에 움직이는 시간 상한. */
-        const val SEAT_MOVE_MAX_MS = 2_500L
-        const val SEAT_POLL_MS = 100L
-        /** 위치가 읽히지 않을 때 젖히는 시간. */
-        const val SEAT_NO_FEEDBACK_MS = 1_200L
-        /** 등받이를 젖히는 양(차량 위치 단위). 끼임을 막기 위해 작게 잡는다. */
-        const val SEAT_RECLINE_UNITS = 15
+        const val SEAT_RAISE_PULSE_MS = 2_000L
+        const val SEAT_RAISE_REST_MS = 5_000L
+        const val SEAT_RAISE_TOTAL_MS = 10_000L
     }
 }
