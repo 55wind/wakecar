@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun screenBrightness(nap: NapState): Float = when {
-        nap.phase != Phase.SLEEPING || nap.interruption != null ->
+        nap.phase != Phase.SLEEPING ->
             WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         nap.stage == 0 -> 0.02f
         else -> 0.3f

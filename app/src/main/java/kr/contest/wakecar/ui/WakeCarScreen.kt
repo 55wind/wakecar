@@ -56,7 +56,6 @@ import kr.contest.wakecar.NapController
 import kr.contest.wakecar.NapPlan
 import kr.contest.wakecar.UiState
 import kr.contest.wakecar.core.EndReason
-import kr.contest.wakecar.core.Interruption
 import kr.contest.wakecar.core.Phase
 import kr.contest.wakecar.core.StartBlock
 
@@ -123,7 +122,7 @@ fun WakeCarTheme(content: @Composable () -> Unit) {
 @Composable
 fun WakeCarScreen(ui: UiState, controller: NapController) {
     val phase = ui.nap.phase
-    val asleep = phase == Phase.SLEEPING && ui.nap.interruption == null
+    val asleep = phase == Phase.SLEEPING
     val background = when {
         asleep -> Brush.verticalGradient(listOf(Color.Black, Color.Black))
         // 깨우는 장면: 왼쪽 위에서 새벽빛이 번진다.
@@ -198,7 +197,11 @@ private fun SetupScreen(ui: UiState, c: NapController) {
                             modifier = Modifier.padding(start = 20.dp, bottom = 24.dp),
                         )
                     }
-                    Text("${napMinutes}분 잡니다.", color = Tone.TextMuted, style = Type.Body)
+                    Text(
+                        if (napMinutes > 20) "${napMinutes}분 잡니다. 20분보다 길게 자면 깬 뒤 더 멍할 수 있어요." else "${napMinutes}분 잡니다.",
+                        color = Tone.TextMuted,
+                        style = Type.Body,
+                    )
                 }
             }
 
@@ -245,7 +248,7 @@ private fun SetupScreen(ui: UiState, c: NapController) {
             }
 
             Spacer(Modifier.height(28.dp))
-            PrimaryButton("낮잠 시작", enabled = canStart, onClick = c::start, modifier = Modifier.fillMaxWidth())
+            PrimaryButton("정차 중이에요. 낮잠 시작", enabled = canStart, onClick = c::start, modifier = Modifier.fillMaxWidth())
             ui.startBlock?.let {
                 Spacer(Modifier.height(14.dp))
                 Notice(blockMessage(it), Tone.Danger)
@@ -278,13 +281,10 @@ private fun SetupScreen(ui: UiState, c: NapController) {
             }
             Panel("차가 해 주는 일") {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SupportTile("등받이 조절", ui.support.seat, Modifier.weight(1f))
                     SupportTile("조명 조절", ui.support.ambientLight, Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SupportTile("바깥 공기", ui.support.freshAir, Modifier.weight(1f))
                     SupportTile("바람 세기", ui.support.fan, Modifier.weight(1f))
                 }
+                Text("등받이는 직접 젖혀 주세요. 앱은 등받이를 뒤로 젖히지 않습니다.", color = Tone.TextMuted, style = Type.Caption)
             }
             Row(
                 modifier = Modifier
@@ -331,31 +331,6 @@ private fun blockMessage(block: StartBlock): String = when (block) {
 
 @Composable
 private fun SleepingScreen(ui: UiState, c: NapController) {
-    val interruption = ui.nap.interruption
-    if (interruption != null) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = when (interruption) {
-                    Interruption.DOOR_OPENED -> "문이 열렸어요."
-                    Interruption.BRAKE_PRESSED -> "브레이크를 밟으셨어요."
-                },
-                color = Tone.Periwinkle,
-                style = Type.Title,
-            )
-            Text("낮잠을 끝낼까요?", color = Tone.Text, style = Type.Display)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                GhostButton("계속 자기", onClick = c::continueSleep, modifier = Modifier.width(300.dp).heightIn(min = 96.dp))
-                PrimaryButton("끝내기", onClick = c::endNap, modifier = Modifier.width(300.dp))
-            }
-        }
-        return
-    }
-
     val preWake = ui.nap.stage >= 1
     val color = if (preWake) Tone.TextMuted else Tone.Faint
     Box(modifier = Modifier.fillMaxSize()) {
@@ -444,12 +419,10 @@ private fun WakingScreen(ui: UiState, c: NapController) {
         ) {
             Panel("깨우기 ${nap.stage}단계") {
                 StageRow(1, "조명 밝히기", nap.stage)
-                StageRow(2, "등받이 세우고 알람", nap.stage)
-                StageRow(3, "바깥 공기와 바람", nap.stage)
-                StageRow(4, "바람과 알람 최대", nap.stage)
+                StageRow(2, "알람과 깨어남 미션", nap.stage)
+                StageRow(3, "바람 세게, 알람 빠르게", nap.stage)
+                StageRow(4, "알람 최대", nap.stage)
             }
-            if (ui.support.seat == false) Notice("등받이는 직접 세워 주세요.", Tone.Dawn)
-            if (nap.stage >= 3 && ui.support.freshAir == false) Notice("창문을 열어 바깥 공기를 쐬세요.", Tone.Dawn)
             EmergencyStop(onStop = c::emergencyStop)
         }
     }
@@ -471,7 +444,7 @@ private fun GuardScreen(ui: UiState, c: NapController) {
         Text(question.text, color = Tone.Text, style = Type.Display, textAlign = TextAlign.Center)
         Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            question.choices.forEachIndexed { index, choice ->
+            question.choices.forEach { choice ->
                 Box(
                     modifier = Modifier
                         .widthIn(min = 290.dp)
@@ -479,7 +452,7 @@ private fun GuardScreen(ui: UiState, c: NapController) {
                         .clip(CardShape)
                         .background(Tone.Card)
                         .border(1.dp, Tone.Border, CardShape)
-                        .clickable(role = Role.Button) { c.answer(index) }
+                        .clickable(role = Role.Button) { c.answer() }
                         .padding(horizontal = 28.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -487,7 +460,8 @@ private fun GuardScreen(ui: UiState, c: NapController) {
                 }
             }
         }
-        if (nap.wrongAnswer) Notice("다시 골라 주세요.", Tone.Danger)
+        // 알람이 멈춘 뒤 한 번만 5분 미룰 수 있다.
+        if (!nap.snoozeUsed) GhostButton("5분만 더", onClick = c::snooze)
 
         // 남은 시간 막대. 답이 없으면 다시 깨운다는 것을 눈으로 알 수 있게 한다.
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -500,7 +474,7 @@ private fun GuardScreen(ui: UiState, c: NapController) {
                         .background(Tone.Periwinkle),
                 )
             }
-            Text("${ui.guardSecondsLeft}초 안에 답이 없으면 다시 깨워 드려요.", color = Tone.TextMuted, style = Type.Caption)
+            Text("${ui.guardSecondsLeft}초 동안 아무 조작이 없으면 다시 깨워 드려요.", color = Tone.TextMuted, style = Type.Caption)
         }
         EmergencyStop(onStop = c::emergencyStop)
     }
@@ -528,8 +502,9 @@ private fun DoneScreen(ui: UiState, c: NapController) {
         }
         Text(
             text = when (nap.endReason) {
-                EndReason.COMPLETED ->
-                    if (nap.needsStretch) "2분만 몸을 풀고 움직이세요" else "좋아요, 늦지 않게 다녀오세요"
+                EndReason.COMPLETED -> "10분만 바람 쐬고 움직이세요"
+                EndReason.DOOR_OPENED -> "문이 열려 낮잠을 끝냈어요"
+                EndReason.BRAKE_PRESSED -> "브레이크를 밟아 낮잠을 끝냈어요"
                 EndReason.LEFT_CAR -> "잘 다녀오세요"
                 EndReason.GEAR_LEFT_PARK -> "기어가 P에서 벗어나 낮잠을 끝냈어요"
                 EndReason.EMERGENCY_STOP -> "알람을 멈췄어요"
@@ -545,13 +520,7 @@ private fun DoneScreen(ui: UiState, c: NapController) {
             if (nap.realarmCount > 0) Stat("다시 깨운 횟수", "${nap.realarmCount}번")
         }
         if (nap.chargeReminder) Notice("충전이 끝났는지 확인하고 충전 케이블을 분리해 주세요.", Tone.Dawn)
-        if (ui.support.seatLeftReclined) {
-            // 주행 기어에서는 차가 등받이 움직임을 막는다.
-            Notice("등받이는 직접 세워 주세요.", Tone.Dawn)
-            Text("조명과 공조는 낮잠 전 상태로 되돌렸어요.", color = Tone.TextMuted, style = Type.Caption)
-        } else {
-            Text("등받이, 조명, 공조를 낮잠 전 상태로 되돌렸어요.", color = Tone.TextMuted, style = Type.Caption)
-        }
+        Text("조명과 공조를 낮잠 전 상태로 되돌렸어요.", color = Tone.TextMuted, style = Type.Caption)
         PrimaryButton("처음으로", onClick = c::reset, modifier = Modifier.width(340.dp))
     }
 }

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -32,9 +33,16 @@ def adb(*args, binary=False, timeout=60):
 
 def http(method, path, **params):
     url = BASE + path + ('?' + urllib.parse.urlencode(params) if params else '')
-    req = urllib.request.Request(url, method=method, data=b'' if method != 'GET' else None)
-    with urllib.request.urlopen(req, timeout=10) as r:
-        return r.read().decode('utf-8', 'replace')
+    # 부팅 직후에는 Virtual Console이 준비되지 않아 503을 돌려준다. 잠깐씩 기다리며 다시 시도한다.
+    for attempt in range(40):
+        req = urllib.request.Request(url, method=method, data=b'' if method != 'GET' else None)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.read().decode('utf-8', 'replace')
+        except urllib.error.HTTPError as e:
+            if e.code != 503 or attempt == 39:
+                raise
+            time.sleep(1.5)
 
 
 def state():
@@ -190,11 +198,13 @@ def step_sleep():
 
 
 def step_interrupt():
+    # 자는 중 문이 열리면 바로 끝난다. 확인한 뒤 다시 잠든다.
     http('PUT', '/vehicle/body', door_fl=1); time.sleep(2.0)
     show('자는 중 문 열림'); shot('05_interruption')
-    tap('계속 자기'); time.sleep(0.8)
     http('PUT', '/vehicle/body', door_fl=0); time.sleep(1.0)
-    show('계속 자기')
+    tap('처음으로'); time.sleep(1.0)
+    tap('낮잠 시작'); time.sleep(3.0)
+    show('다시 자는 중')
 
 
 def wait_for(word, limit=60):

@@ -132,16 +132,13 @@ class NapController(app: Application) {
         dispatch(session.start(now(), minutes))
     }
 
-    fun continueSleep() {
-        session.continueSleep()
-        publish()
-    }
-
     fun endNap() = dispatch(session.endNap(now()))
 
     fun emergencyStop() = dispatch(session.emergencyStop(now()))
 
-    fun answer(choiceIndex: Int) = dispatch(session.answer(now(), choiceIndex))
+    fun answer() = dispatch(session.answer(now()))
+
+    fun snooze() = dispatch(session.snooze(now()))
 
     fun reset() {
         session.reset()

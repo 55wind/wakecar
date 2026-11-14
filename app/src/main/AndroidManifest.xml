@@ -11,13 +11,12 @@
         CAR_ENERGY             배터리·연료 잔량, 충전구
         CAR_WINDOWS            운전석 창문 위치·와이퍼(기상 미션)
         READ_WINDSHIELD_WIPERS 와이퍼 작동 상태(기상 미션)
-        CAR_SEATS              등받이 위치
+        CAR_SEATS              등받이 각도 기억 (앱은 등받이를 뒤로 젖히지 않는다)
         CAR_LIGHTS             무드등 밝기
-        CAR_CLIMATE            내·외기, 풍량
+        CAR_CLIMATE            풍량, 공조 전원
       제어 (Vehicle Control 승인 범위. 주행 제어는 쓰지 않는다)
-        CONTROL_CAR_SEATS      등받이 젖히기·세우기
         CONTROL_CAR_LIGHTS     무드등 밝기
-        CONTROL_CAR_CLIMATE    외기 전환, 풍량
+        CONTROL_CAR_CLIMATE    풍량, 공조 전원
     -->
     <!-- 기어(P 확인)는 Android Automotive 표준 속성 GEAR_SELECTION 을 먼저 읽는다 (SDK 2.3.2 안내). -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
@@ -29,7 +28,6 @@
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
     <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
-    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_SEATS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
     <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
 

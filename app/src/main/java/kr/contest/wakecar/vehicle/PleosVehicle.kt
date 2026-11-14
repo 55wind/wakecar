@@ -38,7 +38,6 @@ import kr.contest.wakecar.core.VehicleSnapshot
 data class CabinSupport(
     val seat: Boolean? = null,
     val ambientLight: Boolean? = null,
-    val freshAir: Boolean? = null,
     val fan: Boolean? = null,
     /** 차가 등받이를 세우는 것을 막았다(주행 기어 등). 운전자가 직접 세워야 한다. */
     val seatLeftReclined: Boolean = false,
@@ -49,7 +48,7 @@ data class CabinSupport(
  *
  * - 읽기: 기어, 브레이크, 도어, 와이퍼, 창문, 배터리·연료, 충전구 → [snapshot]
  *   (기어와 충전구 API는 SDK 2.3.2에서 폐기 예정이다. 기어는 [StandardGear]로 표준 속성을 먼저 읽는다.)
- * - 제어: 등받이, 무드등, 내·외기, 풍량 → [apply]. 시작할 때 capability로 지원 여부를 확인하고,
+ * - 제어: 무드등, 풍량 → [apply]. 앱은 등받이를 뒤로 젖히지 않는다(등받이 코드는 깨울 때 세우는 기능을 위해 남겨 둠). 시작할 때 capability로 지원 여부를 확인하고,
  *   지원하지 않으면 아무것도 하지 않는다(화면 안내로 대신). 바꾼 값은 처음 값을 기억했다가 되돌린다.
  *
  * 차량 통신은 IPC라 결과가 비동기 콜백으로 온다. 콜백은 모두 메인 스레드로 넘겨 처리한다.
@@ -106,8 +105,6 @@ class PleosVehicle(context: Context) {
     private var reclineMs = 0L
     private var ambientBounds: Map<SeatArea, AreaBounds<Int>> = emptyMap()
     private val ambientOriginal = mutableMapOf<SeatArea, Int>()
-    private var recircArea: SeatArea? = null
-    private var recircOriginal: Boolean? = null
     private var fanArea: SeatArea? = null
     private var fanBounds: AreaBounds<Int>? = null
     private var fanOriginal: Int? = null
@@ -139,15 +136,10 @@ class PleosVehicle(context: Context) {
     fun apply(effect: Effect) {
         if (!connected) return
         when (effect) {
-            Effect.SeatRecline -> reclineSeat()
-            Effect.SeatRestore -> restoreSeat()
             is Effect.AmbientLight -> setAmbient(effect.percent)
-            is Effect.FreshAir -> setFreshAir(effect.on)
             is Effect.Fan -> setFan(effect.level)
             Effect.RestoreAll -> {
-                restoreSeat()
                 restoreAmbient()
-                setFreshAir(false)
                 restoreFan()
             }
             else -> Unit
@@ -400,15 +392,6 @@ class PleosVehicle(context: Context) {
         } || supportUpdate { it.copy(ambientLight = false) }
 
         val hvac = vehicle.getHVAC()
-        call("recirculation capability") {
-            hvac.checkHvacRecirculationCapabilities(
-                { _, areas ->
-                    main.post { recircArea = areas.firstOrNull() }
-                    supportUpdate { it.copy(freshAir = areas.isNotEmpty()) }
-                },
-                { supportUpdate { it.copy(freshAir = false) } },
-            )
-        } || supportUpdate { it.copy(freshAir = false) }
         call("hvac power capability") {
             hvac.checkHvacPowerCapabilities(
                 { _, areas -> main.post { hvacPowerArea = areas.firstOrNull() } },
@@ -572,38 +555,6 @@ class PleosVehicle(context: Context) {
             }
         }
         ambientOriginal.clear()
-    }
-
-    // 내·외기: on = 외기 유입(내기 순환 끔). off = 낮잠 전 설정으로.
-
-    private fun setFreshAir(on: Boolean) {
-        val area = recircArea ?: return
-        val hvac = vehicle.getHVAC()
-        if (on) {
-            if (recircOriginal != null) return
-            call("recirculation get") {
-                hvac.getHvacRecirculationState(
-                    area,
-                    { state ->
-                        main.post {
-                            recircOriginal = state ?: false
-                            if (state != false) setRecirculation(area, false)
-                        }
-                    },
-                    { warn("recirculation get", it) },
-                )
-            }
-        } else {
-            val original = recircOriginal ?: return
-            recircOriginal = null
-            if (original) setRecirculation(area, true)
-        }
-    }
-
-    private fun setRecirculation(area: SeatArea, on: Boolean) {
-        call("recirculation set") {
-            vehicle.getHVAC().setHvacRecirculation(area, on, { _, _ -> }, { warn("recirculation set", it) })
-        }
     }
 
     // 풍량: 처음 값보다 낮추지는 않는다.

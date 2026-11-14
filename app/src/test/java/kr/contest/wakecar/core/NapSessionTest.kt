@@ -26,8 +26,8 @@ class NapSessionTest {
     )
 
     private val questions = listOf(
-        Question("오늘이 무슨 요일이에요?", listOf("월요일", "수요일", "금요일"), 1),
-        Question("지금 몇 시쯤일까요?", listOf("오전 9시쯤", "오후 1시쯤", "오후 4시쯤"), 1),
+        Question("오늘이 무슨 요일이에요?", listOf("월요일", "수요일", "금요일")),
+        Question("지금 몇 시쯤일까요?", listOf("오전 9시쯤", "오후 1시쯤", "오후 4시쯤")),
     )
 
     private fun session(
@@ -36,7 +36,7 @@ class NapSessionTest {
         qs: List<Question> = questions,
     ) = NapSession(t, Random(seed)) { qs }.also { it.onVehicle(0, snapshot) }
 
-    /** 15분 낮잠을 시작해 기상 알림(2단계)까지 보낸다. */
+    /** 15분 낮잠을 시작해 알람(2단계)까지 보낸다. */
     private fun NapSession.sleepUntilWake(): Long {
         start(0, 15)
         tick(15 * min)
@@ -75,35 +75,35 @@ class NapSessionTest {
     }
 
     @Test
-    fun `시작하면 등받이를 젖히고 조명을 끈다`() {
+    fun `시작하면 조명만 낮추고 등받이는 건드리지 않는다`() {
         val s = session()
         val fx = s.start(0, 15)
-        assertTrue(Effect.SeatRecline in fx)
+        assertEquals(2, fx.size)
         assertTrue(Effect.AmbientLight(0) in fx)
+        assertTrue(fx.any { it is Effect.Speak })
         assertEquals(Phase.SLEEPING, s.state.phase)
         assertEquals(15 * min, s.state.wakeAt)
     }
 
     @Test
-    fun `기상 5분 전부터 조명을 서서히 밝힌다`() {
+    fun `정한 시각 3분 전부터 조명을 서서히 밝힌다`() {
         val s = session()
         s.start(0, 15)
-        assertTrue(s.tick(9 * min).isEmpty())
-        assertEquals(listOf<Effect>(Effect.AmbientLight(20)), s.tick(10 * min))
+        assertTrue(s.tick(11 * min).isEmpty())
+        assertEquals(listOf<Effect>(Effect.AmbientLight(20)), s.tick(12 * min))
         assertEquals(1, s.state.stage)
-        assertTrue(s.tick(10 * min + 1000).isEmpty())
-        assertEquals(listOf<Effect>(Effect.AmbientLight(60)), s.tick(12 * min + 30_000))
+        assertTrue(s.tick(12 * min + 1000).isEmpty())
+        assertEquals(listOf<Effect>(Effect.AmbientLight(60)), s.tick(13 * min + 30_000))
         assertEquals(Phase.SLEEPING, s.state.phase)
     }
 
     @Test
-    fun `기상 시각에 등받이를 세우고 알람과 미션을 낸다`() {
+    fun `정한 시각에 알람과 미션을 낸다`() {
         val s = session()
         s.start(0, 15)
         val fx = s.tick(15 * min)
         assertEquals(Phase.WAKING, s.state.phase)
         assertEquals(2, s.state.stage)
-        assertTrue(Effect.SeatRestore in fx)
         assertTrue(Effect.AmbientLight(100) in fx)
         assertTrue(Effect.Alarm(1) in fx)
         assertTrue(fx.any { it is Effect.Speak && s.state.mission!!.prompt in it.text })
@@ -111,13 +111,13 @@ class NapSessionTest {
     }
 
     @Test
-    fun `반응이 없으면 3단계 외기와 송풍, 4단계 최대 송풍으로 올린다`() {
+    fun `반응이 없으면 3단계에서 바람과 알람을 세게, 4단계에서 최대로 올린다`() {
         val s = session()
         val wake = s.sleepUntilWake()
         assertTrue(s.tick(wake + t.stage3AfterMs - 1).isEmpty())
         val stage3 = s.tick(wake + t.stage3AfterMs)
         assertEquals(3, s.state.stage)
-        assertEquals(listOf(Effect.FreshAir(true), Effect.Fan(FanLevel.MEDIUM), Effect.Alarm(2)), stage3)
+        assertEquals(listOf(Effect.Fan(FanLevel.MEDIUM), Effect.Alarm(2)), stage3)
         val stage4 = s.tick(wake + t.stage4AfterMs)
         assertEquals(4, s.state.stage)
         assertTrue(Effect.Fan(FanLevel.MAX) in stage4)
@@ -130,7 +130,8 @@ class NapSessionTest {
         val s = session()
         val wake = s.sleepUntilWake()
         assertTrue(s.endNap(wake + 1).isEmpty())
-        assertTrue(s.answer(wake + 1, 0).isEmpty())
+        assertTrue(s.answer(wake + 1).isEmpty())
+        assertTrue(s.snooze(wake + 1).isEmpty())
         assertEquals(Phase.WAKING, s.state.phase)
     }
 
@@ -180,7 +181,7 @@ class NapSessionTest {
     }
 
     @Test
-    fun `확인 질문 두 개에 답하면 끝나고 차를 원래대로 돌린다`() {
+    fun `말놀이는 무엇을 골라도 넘어가고 두 개를 마치면 끝난다`() {
         val s = session()
         val wake = s.sleepUntilWake()
         s.completeMission(wake + 100)
@@ -188,34 +189,16 @@ class NapSessionTest {
         assertEquals(1, s.state.questionNumber)
         assertEquals(2, s.state.questionCount)
 
-        s.answer(wake + 2000, 1)
+        s.answer(wake + 2000)
         assertEquals(2, s.state.questionNumber)
-        val fx = s.answer(wake + 4000, 1)
+        val fx = s.answer(wake + 60_000)
         assertEquals(Phase.DONE, s.state.phase)
         assertEquals(EndReason.COMPLETED, s.state.endReason)
         assertTrue(Effect.RestoreAll in fx)
-        assertFalse(s.state.needsStretch)
     }
 
     @Test
-    fun `틀리거나 늦게 답하면 몸을 풀라고 안내한다`() {
-        val wrong = session()
-        var wake = wrong.sleepUntilWake()
-        wrong.completeMission(wake + 100)
-        wrong.answer(wake + 1000, 0)
-        assertTrue(wrong.state.wrongAnswer)
-        assertEquals(1, wrong.state.questionNumber)
-        assertTrue(wrong.state.needsStretch)
-
-        val slow = session()
-        wake = slow.sleepUntilWake()
-        slow.completeMission(wake + 100)
-        slow.answer(wake + 200 + t.slowAnswerMs + 1, 1)
-        assertTrue(slow.state.needsStretch)
-    }
-
-    @Test
-    fun `미션 뒤 답이 없으면 다시 잠든 것으로 보고 다른 미션으로 더 세게 깨운다`() {
+    fun `미션 뒤 3분 동안 아무 조작이 없으면 다른 미션으로 더 세게 깨운다`() {
         val s = session()
         val wake = s.sleepUntilWake()
         val first = s.state.mission
@@ -231,10 +214,45 @@ class NapSessionTest {
         assertTrue(Effect.Alarm(2) in fx)
         assertTrue(Effect.Fan(FanLevel.MEDIUM) in fx)
 
-        // 두 번째 미션을 끝내면 남은 질문부터 이어 간다.
+        // 두 번째 미션을 끝내면 남은 말놀이부터 이어 간다.
         s.completeMission(deadline + 100)
         assertEquals(Phase.GUARD, s.state.phase)
         assertEquals(1, s.state.questionNumber)
+    }
+
+    @Test
+    fun `미션 뒤 차량 조작이 있으면 다시 깨우기까지의 시간을 새로 잰다`() {
+        val s = session()
+        val wake = s.sleepUntilWake()
+        s.completeMission(wake + 100)
+        val deadline = s.state.guardDeadline
+
+        s.onVehicle(deadline - 1000, parked.copy(driverWindowOpenPercent = 30))
+        assertEquals(deadline - 1000 + t.guardMs, s.state.guardDeadline)
+        assertTrue(s.tick(deadline).isEmpty())
+        assertEquals(Phase.GUARD, s.state.phase)
+    }
+
+    @Test
+    fun `5분만 더는 한 번만 미뤄 주고 다시 미션부터 한다`() {
+        val s = session()
+        val wake = s.sleepUntilWake()
+        s.completeMission(wake + 100)
+        val snoozedAt = wake + 5000
+
+        s.snooze(snoozedAt)
+        assertEquals(Phase.SLEEPING, s.state.phase)
+        assertTrue(s.state.snoozeUsed)
+        assertEquals(snoozedAt + t.snoozeMs, s.state.wakeAt)
+
+        s.tick(snoozedAt + t.snoozeMs)
+        assertEquals(Phase.WAKING, s.state.phase)
+        assertEquals(2, s.state.stage)
+
+        s.completeMission(snoozedAt + t.snoozeMs + 100)
+        assertEquals(Phase.GUARD, s.state.phase)
+        assertTrue(s.snooze(snoozedAt + t.snoozeMs + 200).isEmpty())
+        assertEquals(Phase.GUARD, s.state.phase)
     }
 
     @Test
@@ -253,6 +271,22 @@ class NapSessionTest {
     }
 
     @Test
+    fun `자는 중 문이 열리거나 브레이크를 밟으면 바로 끝낸다`() {
+        val door = session()
+        door.start(0, 15)
+        val fx = door.onVehicle(min, parked.copy(anyDoorOpen = true))
+        assertEquals(Phase.DONE, door.state.phase)
+        assertEquals(EndReason.DOOR_OPENED, door.state.endReason)
+        assertTrue(Effect.RestoreAll in fx)
+        assertEquals(min, door.state.sleptMs)
+
+        val brake = session()
+        brake.start(0, 15)
+        brake.onVehicle(2 * min, parked.copy(brakePressed = true))
+        assertEquals(EndReason.BRAKE_PRESSED, brake.state.endReason)
+    }
+
+    @Test
     fun `자는 중 잔량이 기준 아래로 떨어지면 바로 깨운다`() {
         val s = session()
         s.start(0, 15)
@@ -264,39 +298,7 @@ class NapSessionTest {
     }
 
     @Test
-    fun `자는 중 문이 열리면 끝낼지 묻고, 답이 없으면 계속 잔다`() {
-        val s = session()
-        s.start(0, 15)
-        s.onVehicle(min, parked.copy(anyDoorOpen = true))
-        assertEquals(Interruption.DOOR_OPENED, s.state.interruption)
-        assertEquals(Phase.SLEEPING, s.state.phase)
-
-        s.tick(min + t.interruptionPromptMs)
-        assertNull(s.state.interruption)
-
-        s.onVehicle(2 * min, parked)
-        s.onVehicle(2 * min + 1, parked.copy(brakePressed = true))
-        assertEquals(Interruption.BRAKE_PRESSED, s.state.interruption)
-        s.continueSleep()
-        assertNull(s.state.interruption)
-
-        s.endNap(3 * min)
-        assertEquals(EndReason.USER_ENDED, s.state.endReason)
-        assertEquals(3 * min, s.state.sleptMs)
-    }
-
-    @Test
-    fun `자는 동안 15분마다 1분씩 외기를 들인다`() {
-        val s = session()
-        s.start(0, 30)
-        assertTrue(s.tick(14 * min).isEmpty())
-        assertEquals(listOf<Effect>(Effect.FreshAir(true)), s.tick(15 * min))
-        assertTrue(s.tick(15 * min + 30_000).isEmpty())
-        assertEquals(listOf<Effect>(Effect.FreshAir(false)), s.tick(16 * min))
-    }
-
-    @Test
-    fun `확인 구간에 문을 열고 내리면 깬 것으로 보고 끝낸다`() {
+    fun `깬 뒤 문을 열고 내리면 끝낸다`() {
         val s = session()
         val wake = s.sleepUntilWake()
         s.completeMission(wake + 100)
@@ -310,12 +312,11 @@ class NapSessionTest {
         val s = session(charging, qs = emptyList())
         s.start(0, 15)
         s.tick(15 * min)
-        val base = charging
         val fx = when (s.state.mission!!) {
-            Mission.BRAKE_TWICE -> s.pressBrake(15 * min + 1, base) + s.pressBrake(15 * min + 10, base)
-            Mission.WIPER_ON -> s.onVehicle(15 * min + 1, base.copy(wiperOn = true))
-            Mission.WINDOW_DOWN_UP -> s.onVehicle(15 * min + 1, base.copy(driverWindowOpenPercent = 50)) +
-                s.onVehicle(15 * min + 2, base)
+            Mission.BRAKE_TWICE -> s.pressBrake(15 * min + 1, charging) + s.pressBrake(15 * min + 10, charging)
+            Mission.WIPER_ON -> s.onVehicle(15 * min + 1, charging.copy(wiperOn = true))
+            Mission.WINDOW_DOWN_UP -> s.onVehicle(15 * min + 1, charging.copy(driverWindowOpenPercent = 50)) +
+                s.onVehicle(15 * min + 2, charging)
         }
         assertEquals(Phase.DONE, s.state.phase)
         assertTrue(s.state.chargeReminder)
@@ -323,7 +324,7 @@ class NapSessionTest {
     }
 
     @Test
-    fun `비상 종료는 깨우는 중에만 듣는다`() {
+    fun `3초 길게 눌러 끄기는 깨우는 중에만 듣는다`() {
         val s = session()
         s.start(0, 15)
         assertTrue(s.emergencyStop(1000).isEmpty())
@@ -346,12 +347,13 @@ class NapSessionTest {
     }
 
     @Test
-    fun `확인 질문은 오늘 요일과 지금 시각을 정답으로 낸다`() {
+    fun `말놀이는 오늘 요일과 지금 시각을 선택지에 넣는다`() {
         val qs = WarmUpQuestions.build(dayOfWeek = 5, hour = 13, random = Random(3))
         assertEquals(2, qs.size)
-        assertEquals("금요일", qs[0].choices[qs[0].answerIndex])
-        assertEquals("오후 1시쯤", qs[1].choices[qs[1].answerIndex])
+        assertTrue("금요일" in qs[0].choices)
+        assertTrue("오후 1시쯤" in qs[1].choices)
         assertEquals(3, qs[0].choices.toSet().size)
         assertEquals(3, qs[1].choices.toSet().size)
+        assertFalse(qs[0].choices.isEmpty())
     }
 }

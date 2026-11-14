@@ -48,7 +48,7 @@
 
 ## APK 파일 위치
 
-- `apk/난나고서울은너야_일어나차_release.apk` (release 서명본, Pleos Connect Emulator 2.1.0에서 설치와 실행 확인)
+- `apk/난나고현대는너야_일어나차_release.apk` (release 서명본, Pleos Connect Emulator 2.1.0에서 설치와 실행 확인)
 
 ## 저장소 구성
 
