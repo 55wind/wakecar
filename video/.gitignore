@@ -1,0 +1,6 @@
+node_modules/
+build/
+output/*
+!output/wakecar-jury-hallmark-3min.mp4
+!output/wakecar-cover.jpg
+!output/wakecar-jury-ko.srt

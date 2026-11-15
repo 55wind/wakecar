@@ -59,6 +59,12 @@ Pleos Connect 에뮬레이터에서 촬영한 실행 화면입니다. 일부 화
 | ![설정 화면: 콩콩, 폭신, 빵삐, 몽실 캐릭터 선택](docs/screens/12_settings.png) | ![캐릭터 성장 화면: 레벨, 오늘의 할 일과 옷장 소품](docs/screens/13_grow.png) |
 | 캐릭터의 이름과 설명을 보고 함께할 캐릭터를 고릅니다. | 레벨과 별사탕을 확인하고, 오늘의 할 일과 옷장 소품을 이용합니다. |
 
+## 소개 영상
+
+[심사위원용 3분 소개 영상 보기](video/output/wakecar-jury-hallmark-3min.mp4)
+
+Full HD 30fps 영상으로, 한국어 자막과 앱 원작 음악을 포함합니다. 음성 내레이션 없이 실제 에뮬레이터 캡처와 캐릭터 모션으로 기능을 설명합니다. [장면 구성과 영상 제작 방법](video/README.md)도 함께 제공합니다.
+
 ## 실행 방법
 
 1. Android Studio에서 이 폴더를 엽니다 (JDK 17, Gradle 8.10.2 wrapper, AGP 8.8.2).

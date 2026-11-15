@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="일어나차의 낮잠, 기상 미션과 차량 연동을 소개하는 3분 영상. 한국어 자막과 앱 원작 음악을 포함합니다.">
+<title>일어나차 심사위원 소개 영상</title>
+<link rel="stylesheet" href="hallmark/film.css">
+</head>
+<body>
+<main class="review"><h1>일어나차</h1><p>정차한 차 안에서 잠들고, 미션으로 깨어나고, 출발 전까지 쉬는 3분의 소개입니다.</p><video controls preload="metadata" poster="output/wakecar-cover.jpg" aria-label="한국어 자막과 앱 음악을 포함한 일어나차 소개 영상"><source src="output/wakecar-jury-hallmark-3min.mp4" type="video/mp4">영상 파일을 내려받아 재생해 주세요.</video><p><a href="output/wakecar-jury-hallmark-3min.mp4" download>영상 내려받기</a></p></main>
+<canvas width="1920" height="1080" aria-label="일어나차 영상의 렌더링 프레임"></canvas>
+<script>
+const C=document.querySelector('canvas'),c=C.getContext('2d'),W=1920,H=1080;
+const css=getComputedStyle(document.documentElement),token=n=>css.getPropertyValue('--'+n).trim();
+const ink=token('color-ink'),muted=token('color-muted'),mint=token('color-accent'),sun=token('color-wake'),paper=token('color-paper'),rule=token('color-rule'),black=token('color-shadow'),night=token('color-night'),dawn=token('color-dawn'),clear=token('color-transparent'),font=token('font-body');
+let assets={},scenes=[],cues=[],wave=[];const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)),ease=n=>1-Math.pow(1-clamp(n),3);
+function box(x,y,w,h,r=0,fill=paper,stroke){c.beginPath();c.roundRect(x,y,w,h,r);if(fill){c.fillStyle=fill;c.fill()}if(stroke){c.lineWidth=2;c.strokeStyle=stroke;c.stroke()}}
+function text(s,x,y,size=30,col=ink,weight=500,align='left'){c.font=`${weight} ${size}px ${font}`;c.textAlign=align;c.textBaseline='top';c.fillStyle=col;c.fillText(s,x,y);c.textAlign='left'}
+function lines(s,x,y,size=72,col=ink,weight=750,gap=1.18){s.split('\n').forEach((a,i)=>text(a,x,y+i*size*gap,size,col,weight))}
+function hr(x,y,w,col=rule){c.strokeStyle=col;c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(x+w,y);c.stroke()}
+function wrap(s,w,size){c.font=`500 ${size}px ${font}`;let a=[],row='';for(const ch of s){if(c.measureText(row+ch).width>w){a.push(row);row=ch}else row+=ch}if(row)a.push(row);return a}
+function char(n,x,y,size,t,expression){const frame=expression??((Math.round(5*Math.sin((reduced?0:t)*.55))+48)%48);const im=assets[`char/${n}/${String(frame).padStart(2,'0')}`];c.save();c.globalAlpha=.25;c.fillStyle=black;c.beginPath();c.ellipse(x+size*.5,y+size*.88,size*.22,size*.034,0,0,7);c.fill();c.globalAlpha=1;c.drawImage(im,x,y+(reduced?0:Math.sin(t*1.7)*6),size,size);c.restore()}
+function screenshot(name,x,y,w,h,alpha=1){c.save();c.globalAlpha=alpha;c.beginPath();c.roundRect(x,y,w,h,10);c.clip();c.drawImage(assets['screen/'+name],853,90,1681,1210,x,y,w,h);c.restore()}
+function actualLabel(x,y){text('에뮬레이터 캡처, 시연 모드 포함',x,y,20,muted)}
+function list(items,t,x,y,w=590,size=30){items.forEach((s,i)=>{const a=ease((t-.5-i*.65)/.6);c.save();c.globalAlpha=a;hr(x,y+i*90-15,w);text(String(i+1).padStart(2,'0'),x,y+i*90,22,mint,500);text(s,x+55,y+i*90-2,size);c.restore()})}
+function annotation(x,y,w,h,t,col=mint){c.save();c.globalAlpha=.6+.3*Math.sin(t*2);box(x,y,w,h,10,null,col);c.restore()}
+function hook(s,t){lines(s.title,96,251,108);text('알람 종료와 깨어남 사이의 빈틈',101,562,36,muted);char('kongkong',1110,164,680,t,50);text('일어나차',101,810,30,mint,750)}
+function brand(s,t,out=false){text('일어나차',96,147,148,ink,750);lines(s.title,103,341,out?68:76);const names=['kongkong','poksin','ppangppi','mongsil'];names.forEach((n,i)=>char(n,840+(i%2)*450,95+Math.floor(i/2)*380,400,t+i*1.4));text(out?'팀 난나고현대는너야':'Pleos Connect 차량용 낮잠 앱',104,743,30,muted);if(out)text('Code your App into Pleos App Market',104,807,23,muted)}
+function demo(s,t){
+ if(s.id==='sleep'){lines(s.title,96,181,74);list(s.points,t,100,510,460,27);screenshot(s.screen,680,160,1150,828);actualLabel(684,124);return;}
+ if(s.id==='mission'){screenshot(s.screen,92,166,1040,749);actualLabel(96,130);lines(s.title,1190,213,65);list(s.points,t,1192,532,632,29);return;}
+ if(s.id==='rest'){text('10분',96,195,190,sun,750);lines('일어난 뒤,\n출발 전 휴식',104,435,63);text('휴식 종료 뒤 출발 버튼 활성화',108,660,30,muted);text('출발 여부는 운전자가 결정',108,715,30,muted);screenshot(s.screen,800,158,1030,742);actualLabel(804,122);return;}
+ if(s.id==='guard'){lines(s.title,96,161,76);screenshot(s.screen,96,394,690,497);if(s.screen2)screenshot(s.screen2,1136,394,690,497);text('말놀이',99,338,28,mint);text('차량 조작 없이 3분',820,489,29,muted);text('다른 미션으로 재알람',820,552,27,muted);text('재알람',1138,338,28,sun);hr(820,622,255);text('5분 미루기는 한 번만',820,650,26,muted);actualLabel(99,903);return;}
+ lines(s.title,96,197,77);list(s.points,t,100,550,590,29);screenshot(s.screen,795,158,1030,742);actualLabel(799,122);const b=t<6?[.51,.29,.45,.13]:[.52,.84,.44,.10];annotation(795+b[0]*1030,158+b[1]*742,b[2]*1030,b[3]*742,t);
+}
+function stages(s,t){lines(s.title,96,164,78);const a=[['3분 전','빛으로 준비','조명을 서서히 밝히기'],['정한 시각','알람과 미션','선율형 알람 시작'],['1분 무반응','바람과 알람 강화','선택 시 등받이 일으키기'],['5분 무반응','마지막 깨우기','알람 최대 단계']];const k=Math.min(3,Math.floor(t/3.5));a.forEach((r,i)=>{let x=96+i*440,col=i===k?sun:muted;hr(x,458,393,i===k?sun:rule);text(String(i+1).padStart(2,'0'),x,497,103,col,750);text(r[0],x,638,28,col);text(r[1],x,702,34,ink,750);text(r[2],x,767,24,muted)});text('실제 앱의 1~4단계 알람을 순서대로 재생합니다',100,867,25,sun)}
+function safety(s,t){lines(s.title,96,160,82);const rows=[['낮잠 종료','기어 P 이탈, 차량 움직임','자는 중 문 열림, 브레이크'],['먼저 깨우기','차량 전원 차단 경고','배터리 또는 연료 부족'],['상태 복원','낮잠이 끝나면','무드등과 공조를 이전 상태로']];rows.forEach((r,i)=>{let y=438+i*157;hr(100,y-24,1724);text(r[0],100,y,47,i===0?sun:ink,750);text(r[1],720,y+5,32);text(r[2],1220,y+5,30,muted)})}
+function seat(s,t){lines(s.title,96,161,82);text('기본 꺼짐. 켠 경우에만 세우는 방향으로 동작합니다.',100,387,32,muted);const rows=[['2초','한 번에 움직이는 시간'],['10초','전체 동작 시간 상한'],['3초','길게 눌러 비상 종료']];rows.forEach((r,i)=>{let x=96+i*580;hr(x,492,525);text(r[0],x,539,142,i===2?sun:ink,750);text(r[1],x+4,733,30,muted)});text('문, 브레이크, 화면 조작이 있으면 등받이는 즉시 중지',100,850,33,mint)}
+function characters(s,t){if(t>5){lines('낮잠을 잘 마치면,\n함께 자라는 친구',96,194,72);list(s.points,t-5,100,560,600,29);screenshot(s.screen,795,158,1030,742);actualLabel(799,122);return;}lines('나의 낮잠 친구',96,161,91);let names=['kongkong','poksin','ppangppi','mongsil'],ko=['콩콩','폭신','빵삐','몽실'];names.forEach((n,i)=>{let x=85+i*445;char(n,x,380,410,t+i);text(ko[i],x+205,831,35,ink,750,'center')});text('팀 원작 3D 캐릭터 4종',100,295,30,muted)}
+function sound(s,t,global){lines(s.title,96,164,80);const phase=t<3?'수면 음악: 고요한 피아노':t<6?'선율형 알람: 1단계':'선율형 알람: 3단계';text(phase,101,439,33,t<3?mint:sun,500);const start=Math.floor(global*30);for(let i=0;i<150;i++){let v=wave[(start+i)%wave.length]||0;const h=Math.max(3,v*340);box(99+i*11.5,680-h/2,5,h,1,t<3?mint:sun)}text('수면 음악 5종',100,843,31,ink,750);text('선율형 알람 4종',650,843,31,ink,750);text('수면과 알람 음량 개별 조절',1200,843,31,ink,750)}
+function engineering(s,t){lines(s.title,96,161,78);const rows=[['차량 입력','기어, 속도, 문, 에너지','브레이크, 와이퍼, 창문'],['낮잠 상태 기계','수면, 기상, 확인, 휴식','차량 API와 분리한 흐름 관리'],['차량 출력','무드등, 알람, 공조','선택한 등받이 일으키기']];rows.forEach((r,i)=>{let x=96+i*580;hr(x,480,525);text(r[0],x,523,40,ink,750);text(r[1],x,614,29,muted);text(r[2],x,674,27,muted)});text('상태 기계 단위 테스트와 Virtual Console 흐름 자동화',100,789,32,mint);text('에뮬레이터에서 점검. 실차 음량과 성능은 후속 확인.',100,851,26,muted)}
+function value(s,t){lines(s.title,96,161,83);const a=[['준비','차량 상태 확인'],['수면','밤 장면과 음악'],['기상','단계별 알람과 미션'],['휴식','재알람과 출발 전 휴식']];a.forEach((v,i)=>{let x=96+i*440;hr(x,505,392);text(v[0],x,550,82,ink,750);text(v[1],x+3,687,28,muted)});text('정차 중 휴식에 집중',100,842,32,mint);text('기록은 이 기기 안에만 저장',1080,842,32,muted)}
+function subtitle(global){const q=cues.find(q=>global>=q.start&&global<q.end);if(!q)return;const rows=wrap(q.text,1660,30),h=rows.length*40+27;box(0,1080-h-20,1920,h+20,0,paper);rows.forEach((r,j)=>text(r,960,1080-h-7+j*40,30,ink,500,'center'))}
+function footer(s,global){text('일어나차',100,64,26,muted,500);text(s.chapter.replace(/^\d+\s+/,''),1820,64,24,muted,500,'right');subtitle(global)}
+window.init=async(data)=>{scenes=data.scenes;cues=data.cues;wave=data.wave||[];if(data.font){let face=new FontFace('Film',`url(${data.font})`,{weight:'100 900'});await face.load();document.fonts.add(face)}await Promise.all(Object.entries(data.images).map(async([k,src])=>{let im=new Image();im.src=src;await im.decode();assets[k]=im}));document.body.dataset.render='true'};
+window.render=(global)=>{let at=0,index=0;for(;index<scenes.length-1;index++){if(global<at+scenes[index].duration)break;at+=scenes[index].duration}const s=scenes[index],t=global-at;c.save();c.fillStyle=['stages','mission','rest','outro'].includes(s.id)?dawn:s.id==='sleep'?night:paper;c.fillRect(0,0,W,H);c.save();c.globalAlpha=Math.min(ease(t/.4),ease((s.duration-t)/.3));switch(s.type){case'hook':hook(s,t);break;case'brand':brand(s,t);break;case'outro':brand(s,t,true);break;case'demo':demo(s,t);break;case'stages':stages(s,t);break;case'safety':safety(s,t);break;case'seat':seat(s,t);break;case'characters':characters(s,t);break;case'sound':sound(s,t,global);break;case'engineering':engineering(s,t);break;case'value':value(s,t)}c.restore();footer(s,global);if(global<.6||global>179){c.globalAlpha=global<.6?1-clamp(global/.6):clamp(global-179);box(0,0,W,H,0,paper)}c.restore();return C.toDataURL('image/jpeg',.9).split(',')[1]};
+</script></body></html>
