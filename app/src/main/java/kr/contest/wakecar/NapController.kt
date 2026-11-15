@@ -82,6 +82,8 @@ data class UiState(
     /** 키우기 기록과 지금 벽시계 시각(기분, 졸음 계산용). */
     val growth: GrowthState = GrowthState(),
     val wallClock: Long = 0,
+    /** 오늘 날짜(오늘의 할 일을 날마다 새로 시작하는 기준). */
+    val today: String = "",
     /** 끝 화면에 보여 줄 이번 낮잠 보상. */
     val reward: Reward? = null,
     /** 레벨 업 알림(id가 바뀌면 한 번 보여 준다). */
@@ -236,7 +238,11 @@ class NapController(private val app: Application) {
 
     fun claim(q: Quest) = store.updateGrowth { Growth.claim(it, q, today()) }.also { sound.cue("done") }
 
-    fun outfit(o: Outfit) = store.updateGrowth { Growth.outfit(it, charKey(), o) }.also { sound.cue("tap") }
+    fun outfit(o: Outfit) {
+        val buying = o !in Growth.char(store.growth.value, charKey()).owned
+        store.updateGrowth { Growth.outfit(it, charKey(), o) }
+        sound.cue(if (buying) "done" else "tap")   // 살 때는 완료음, 입고 벗을 때는 누름음
+    }
 
     private fun onReward(r: Reward, float: Boolean) {
         if (float && (r.exp > 0 || r.coins > 0)) gain = Event(++eventId, r)
@@ -328,6 +334,7 @@ class NapController(private val app: Application) {
             growth = store.growth.value,
             // 분 단위로만 바꾼다(매 틱 바뀌면 화면 전체가 다시 그려지고 화면 자동화 도구가 멈춘 상태를 알아채지 못한다)
             wallClock = wallNow() / 60_000 * 60_000,
+            today = today(),
             reward = reward,
             levelUp = levelUp,
             gain = gain,

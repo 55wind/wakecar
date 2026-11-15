@@ -111,8 +111,11 @@ fun BoxScope.CharacterSpot(ui: UiState, c: NapController, x: Float, ground: Floa
             growScale = GrowStage.of(g.level).scale,
             onPet = c::pet,
             favoriteKey = favoriteKey,
+            celebrateKey = ui.levelUp?.id ?: 0L,
             modifier = Modifier.offset(x = maxWidth * x - size / 2, y = maxHeight * ground - size * .84f),
         )
+        // 쓰다듬기 보상 숫자는 캐릭터 머리 위에서 떠오른다
+        Box(Modifier.offset(x = maxWidth * x - 160.dp, y = maxHeight * ground - size * .84f).width(320.dp)) { GainFloat(ui) }
     }
 }
 

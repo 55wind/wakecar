@@ -56,6 +56,15 @@ class GrowthTest {
         assertEquals(before + Quest.NAP.reward, s.coins)
     }
 
+    @Test fun `날짜가 바뀌면 어제 한 일은 오늘의 할 일에 남지 않는다`() {
+        var s = Growth.nap(GrowthState(), key, done(EndReason.COMPLETED), 0, day).first
+        assertEquals(1, Growth.rollDay(s, day).daily.naps)
+        assertEquals(0, Growth.rollDay(s, "2026-11-16").daily.naps)
+        val before = s.coins
+        s = Growth.claim(s, Quest.NAP, "2026-11-16")      // 어제 한 낮잠으로는 오늘 보상을 받을 수 없다
+        assertEquals(before, s.coins)
+    }
+
     @Test fun `옷장은 레벨과 별사탕이 되어야 사고 다시 누르면 벗는다`() {
         var s = GrowthState(coins = 100)
         s = Growth.outfit(s, key, Outfit.CROWN); assertEquals(100, s.coins)      // Lv5부터

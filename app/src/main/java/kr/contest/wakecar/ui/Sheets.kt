@@ -267,7 +267,8 @@ fun GrowSheet(ui: UiState, c: NapController, onClose: () -> Unit) {
             )
         }
         Section("오늘의 할 일") {
-            val daily = if (ui.growth.daily.date.isEmpty()) ui.growth.daily else ui.growth.daily
+            // 날짜가 바뀌었으면 어제 기록 대신 새로 시작한 오늘의 할 일을 보여 준다
+            val daily = Growth.rollDay(ui.growth, ui.today).daily
             Quest.entries.forEach { q ->
                 val n = minOf(daily.progress(q), q.need); val got = q in daily.claimed
                 Row(Modifier.fillMaxWidth().heightIn(min = 80.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -342,7 +343,7 @@ fun BoxScope.GainFloat(ui: UiState) {
     }
     if (visible) {
         Row(
-            Modifier.align(Alignment.Center).offset(y = y.value.dp - 40.dp).clip(Pill).background(Color(0x73000000)).padding(horizontal = 16.dp, vertical = 6.dp),
+            Modifier.align(Alignment.TopCenter).offset(y = y.value.dp).clip(Pill).background(Color(0x73000000)).padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text("+${ev.value.exp} 경험치", color = Tone.Ink, style = Type.LabelS.copy(fontWeight = FontWeight.Bold))

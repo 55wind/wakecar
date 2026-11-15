@@ -99,7 +99,6 @@ private fun Screen(ui: UiState, c: NapController, land: Boolean, onRequestSpeed:
             Phase.REST -> RestScreen(ui, c, land, sky, t)
             Phase.DONE -> DoneScreen(ui, c, land, sky, t) { showGrow = true }
         }
-        GainFloat(ui)
         LevelUpToast(ui)
     }
     if (showSettings) SettingsSheet(ui, c, onClose = { showSettings = false }, onSunSweep = { showSettings = false; sweeping = true }, onCharacterPicked = { favoriteKey++ })

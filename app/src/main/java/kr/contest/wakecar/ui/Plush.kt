@@ -147,6 +147,8 @@ fun PlushCharacter(
     growScale: Float = 1f,
     onPet: (Int) -> Unit = {},
     favoriteKey: Int = 0,
+    /** 레벨 업 때마다 바뀌는 값. 바뀌면 하트 눈으로 깡충 뛴다. */
+    celebrateKey: Long = 0L,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -193,6 +195,13 @@ fun PlushCharacter(
         flashPose(Pose.HAPPY, 1600)
         if (character.motion == Motion.ROLL) spinOnce()
         act(character.motion)
+    }
+
+    // 레벨 업 축하(시안의 celebrate: 하트 눈 1.8초)
+    LaunchedEffect(celebrateKey) {
+        if (celebrateKey == 0L) return@LaunchedEffect
+        flashPose(Pose.LOVE, 1800)
+        act(Motion.HOP)
     }
 
     // 스스로 움직이기
