@@ -1,0 +1,38 @@
+:root {
+  --color-paper: #131417;
+  --color-paper-2: #1d1e21;
+  --color-paper-3: #313236;
+  --color-night: #0b1020;
+  --color-dawn: #24211c;
+  --color-ink: #f3f5f4;
+  --color-ink-2: #e0e1e6;
+  --color-muted: #aeb1bb;
+  --color-rule: #44464e;
+  --color-accent: #9ee5cc;
+  --color-wake: #ffc224;
+  --color-danger: #ff4c28;
+  --color-focus: var(--color-accent);
+  --color-accent-ink: var(--color-paper);
+  --color-shadow: #0a0b0d;
+  --color-transparent: transparent;
+  --font-display: Film, "Apple SD Gothic Neo", sans-serif;
+  --font-body: Film, "Apple SD Gothic Neo", sans-serif;
+  --font-outlier: var(--font-body);
+  --container: 1440px;
+  --gutter: clamp(20px, 4vw, 64px);
+  --gap-columns: 32px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-display: clamp(2.75rem, 5vw, 5.25rem);
+  --radius-card: 0;
+  --radius-pill: 999px;
+  --dur-short: 220ms;
+  --dur-micro: 120ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}

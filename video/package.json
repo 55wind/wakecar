@@ -1,0 +1,1 @@
+{"name":"wakecar-jury-film","private":true,"type":"module","scripts":{"render":"node render.mjs"},"dependencies":{"playwright-core":"1.63.0"},"devDependencies":{"puppeteer-core":"^25.17.0"}}

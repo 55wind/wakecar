@@ -1,0 +1,38 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "film",
+  "shape": "film sequence",
+  "theme": "brand",
+  "axes": "dark/grotesk-heavy/cool",
+  "hero": "Stage",
+  "nav": "none",
+  "footer": "wordmark",
+  "imagery": "original plush sprites and real app captures",
+  "photos": [],
+  "entry": "question",
+  "fingerprint": "question/product/parallel/constraint/signal/wordmark",
+  "sections": [
+   "hook",
+   "brand",
+   "setup",
+   "sleep",
+   "stages",
+   "mission",
+   "guard",
+   "rest",
+   "safety",
+   "seat",
+   "characters",
+   "sound",
+   "engineering",
+   "value",
+   "outro"
+  ],
+  "signature": "Sleeping original plush character questions alarm dismissal, followed by real app captures",
+  "waived": [],
+  "prompt": "3-minute jury film, original WakeCar app artwork and music, Korean captions, no narration",
+  "date": "2026-11-15"
+ }
+]

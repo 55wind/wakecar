@@ -1,0 +1,23 @@
+{
+  "scanned": "2026-11-15",
+  "findings": {
+    "palette": "design/proto/tokens.css:27-44, dark surfaces, wake yellow; character mint from existing film",
+    "fonts": "design/proto/tokens.css:49, Korean sans stack; local Pretendard for render",
+    "material": "design/CHARACTER.md:5-10; docs/screens/*.png; app/src/main/res/raw/*.ogg",
+    "framework": "video/render.mjs, Playwright Canvas and ffmpeg"
+  },
+  "preserve": [
+    "180s duration",
+    "no narration",
+    "Korean captions",
+    "all app facts and real captures",
+    "original characters and music"
+  ],
+  "introduce": [
+    "Hallmark tokens",
+    "asymmetric shot sequence",
+    "large constraint numerals",
+    "real soundtrack waveform",
+    "accessible media player fallback"
+  ]
+}
