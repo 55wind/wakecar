@@ -387,7 +387,8 @@ fun WakingScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: F
         if (land) {
             Row(Modifier.fillMaxSize().padding(48.dp), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
                 Column(Modifier.weight(1.1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically)) {
-                    KText(lead, color = Tone.Wake, style = Type.HeadS)
+                    // 떠오르는 해 앞에서도 읽히도록 어두운 판을 깐다
+                    KText(lead, color = Tone.Wake, style = Type.HeadS, modifier = Modifier.clip(ControlShape).background(Tone.GlassStrong).padding(horizontal = 24.dp, vertical = 8.dp))
                     MissionCard(mission, nap.missionStep)
                     LockHint()
                 }
@@ -398,7 +399,7 @@ fun WakingScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: F
             }
         } else {
             Column(Modifier.fillMaxSize().padding(40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                KText(lead, color = Tone.Wake, style = Type.TitleL, modifier = Modifier.widthIn(max = 520.dp))
+                KText(lead, color = Tone.Wake, style = Type.TitleL, modifier = Modifier.widthIn(max = 520.dp).clip(ControlShape).background(Tone.GlassStrong).padding(horizontal = 20.dp, vertical = 8.dp))
                 MissionCard(mission, nap.missionStep)
                 LockHint()
                 Spacer(Modifier.weight(1f))
@@ -566,7 +567,7 @@ fun GuardScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: Fl
             if (land) Spacer(Modifier.weight(.8f))
             Column(
                 Modifier.weight(1.2f).align(if (land) Alignment.CenterVertically else Alignment.Top)
-                    .clip(StageShape).background(Tone.GlassStrong).padding(40.dp),
+                    .clip(StageShape).background(Tone.Panel).padding(40.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 Text("알람을 멈췄어요. 확인 ${nap.questionNumber} / ${nap.questionCount}", color = Tone.Ink2, style = Type.TitleS)
@@ -603,7 +604,7 @@ fun RestScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: Flo
         Row(Modifier.fillMaxSize().padding(48.dp)) {
             if (land) Spacer(Modifier.weight(.95f))
             Column(
-                Modifier.weight(1.05f).align(if (land) Alignment.CenterVertically else Alignment.Top).clip(StageShape).background(Tone.GlassStrong).padding(48.dp),
+                Modifier.weight(1.05f).align(if (land) Alignment.CenterVertically else Alignment.Top).clip(StageShape).background(Tone.Panel).padding(48.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 KText("깬 직후에는 반응이 느릴 수 있어요", color = Tone.Ink2, style = Type.TitleS)
@@ -612,7 +613,8 @@ fun RestScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: Flo
                     Canvas(Modifier.size(120.dp)) {
                         val st = Stroke(10.dp.toPx(), cap = StrokeCap.Round)
                         drawArc(Tone.Rule, 0f, 360f, false, style = st)
-                        drawArc(Tone.Ok, -90f, 360f * (left.toFloat() / total).coerceIn(0f, 1f), false, style = st)
+                        // 남은 시간만큼 초록, 다 쉬면 꽉 찬 초록 고리
+                        drawArc(Tone.Ok, -90f, if (left <= 0) 360f else 360f * (left.toFloat() / total).coerceIn(0f, 1f), false, style = st)
                     }
                     Text(
                         when { left <= 0 -> "이제 출발해도 좋아요."; left >= 60 -> "${(left + 59) / 60}분 남았어요."; else -> "${left}초 남았어요." },
@@ -640,7 +642,7 @@ fun DoneScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: Flo
         GrowHud(ui, onGrow, Modifier.align(Alignment.TopEnd).padding(28.dp))
         Column(
             Modifier.align(Alignment.TopCenter).padding(top = if (land) 40.dp else 120.dp, start = 48.dp, end = 48.dp).widthIn(max = 1040.dp)
-                .clip(StageShape).background(Tone.Paper2.copy(alpha = .9f)).padding(40.dp),
+                .clip(StageShape).background(Tone.Panel).padding(40.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -657,7 +659,8 @@ fun DoneScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: Flo
             ui.reward?.let { r ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("${callName(ui.settings.character.title)}가 받은 보상", color = Tone.Muted, style = Type.Label)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    // 보상이 없으면(안전 때문에 멈춘 낮잠) 0을 늘어놓지 않고 이유만 보여 준다
+                    if (r.exp > 0 || r.coins > 0) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                         Text("+${r.exp} 경험치", color = Tone.Ink, style = Type.TitleS)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) { CoinIcon(28.dp); Text("+${r.coins} 별사탕", color = Tone.Ink, style = Type.TitleS) }
                     }

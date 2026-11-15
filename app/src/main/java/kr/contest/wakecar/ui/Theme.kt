@@ -63,6 +63,8 @@ object Tone {
     val Card2 = Color(0xFFEDEEF2)
     val Glass = Color(0x8F131417)
     val GlassStrong = Color(0xBD131417)
+    /** 글자가 많은 판: 뒤의 해와 구름이 비치지 않게 거의 불투명하게. */
+    val Panel = Color(0xF2131417)
     val KnobOff = Color(0xFFA4A8AE)
     val Coin = Color(0xFFFFD45C)
     val Mood = Color(0xFFFF8FA3)

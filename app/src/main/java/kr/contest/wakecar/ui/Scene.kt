@@ -81,7 +81,7 @@ fun SkyScene(sky: Sky, sunT: Float, modifier: Modifier = Modifier, content: @Com
         Canvas(Modifier.fillMaxSize()) {
             drawRect(Brush.verticalGradient(0f to top, 0.45f to mid, 0.74f to low, 1f to bottom))
             if (stars > 0.01f) drawStars(stars, twinkle.value)
-            if (moon > 0.01f) drawMoon(moon, top)
+            if (moon > 0.01f) drawMoon(moon)
             if (sunAlpha > 0.01f) drawSun(sunT, sunAlpha)
             if (clouds > 0.01f) drawClouds(clouds, drift.value)
             drawHills(hb, hf)
@@ -102,12 +102,17 @@ private fun DrawScope.drawStars(alpha: Float, twinkle: Float) {
     }
 }
 
-private fun DrawScope.drawMoon(alpha: Float, sky: Color) {
+private fun DrawScope.drawMoon(alpha: Float) {
+    // 초승달: 둥근 달에서 조금 비켜 놓은 원을 빼서 만든다(하늘색 원을 덧칠하지 않아 테두리나 얼룩이 생기지 않는다).
     val r = 44f * density
     val c = Offset(size.width * 0.86f - r, size.height * 0.1f + r)
-    drawCircle(Color(0xFFF4EFD8).copy(alpha = alpha * .3f), radius = r * 1.6f, center = c)
-    drawCircle(Color(0xFFF4EFD8).copy(alpha = alpha), radius = r, center = c)
-    drawCircle(sky.copy(alpha = alpha), radius = r * 0.86f, center = c + Offset(r * 0.42f, -r * 0.18f))
+    val moon = Color(0xFFF4EFD8)
+    // 부드럽게 퍼지는 달빛(가장자리로 갈수록 투명)
+    drawCircle(Brush.radialGradient(listOf(moon.copy(alpha = .28f * alpha), moon.copy(alpha = .08f * alpha), Color.Transparent), center = c, radius = r * 2.4f), radius = r * 2.4f, center = c)
+    val disc = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r)) }
+    val cut = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c + Offset(r * 0.48f, -r * 0.22f), r * 0.86f)) }
+    val crescent = Path().apply { op(disc, cut, androidx.compose.ui.graphics.PathOperation.Difference) }
+    drawPath(crescent, moon, alpha = alpha)
 }
 
 private fun DrawScope.drawSun(t: Float, alpha: Float) {

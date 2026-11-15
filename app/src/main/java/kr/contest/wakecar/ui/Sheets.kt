@@ -288,7 +288,10 @@ fun GrowSheet(ui: UiState, c: NapController, onClose: () -> Unit) {
                         Modifier.weight(1f).clip(ControlShape).background(Tone.Paper3).border(2.dp, if (on) Tone.Ok else Color.Transparent, ControlShape).padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        SpriteFrame(ch, o, Pose.AWAKE.frame, Modifier.size(130.dp))
+                        // 머리 위 소품이 잘 보이게 위쪽을 확대해 보여 준다
+                        Box(Modifier.size(130.dp).clip(ControlShape)) {
+                            SpriteFrame(ch, o, Pose.AWAKE.frame, Modifier.size(130.dp).graphicsLayer { scaleX = 1.7f; scaleY = 1.7f; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(.5f, .12f) })
+                        }
                         Text(o.label, color = Tone.Ink, style = Type.BodyS.copy(fontWeight = FontWeight.Bold))
                         WButton(
                             when { on -> "벗기"; own -> "입기"; locked -> "Lv.${o.minLevel}부터"; else -> "${o.price}" },
