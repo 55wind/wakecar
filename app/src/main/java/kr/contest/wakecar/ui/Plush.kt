@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.drawWithContent
@@ -73,7 +74,9 @@ enum class Pose(val frame: Int) { AWAKE(48), DROWSY(49), SLEEP(50), HAPPY(51), S
 object Sprites {
     const val TURN = 48
     private const val STEP = 360f / TURN
-    private val cache = object : LruCache<String, ImageBitmap>(64 * 1024 * 1024) {
+    /** 칸은 512px. 화면에서 512dp보다 크게 그리지 않아 늘어나 깨지지 않는다(MAX_DP). */
+    const val MAX_DP = 512
+    private val cache = object : LruCache<String, ImageBitmap>(96 * 1024 * 1024) {
         override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
     }
 
@@ -83,7 +86,9 @@ object Sprites {
     fun cached(path: String): ImageBitmap? = cache.get(path)
 
     fun load(context: Context, path: String): ImageBitmap? = cache.get(path) ?: runCatching {
-        context.assets.open(path).use { BitmapFactory.decodeStream(it) }?.asImageBitmap()?.also { cache.put(path, it) }
+        // GPU 메모리 비트맵(HARDWARE)으로 읽어 앱 힙을 덜 쓴다
+        val opts = BitmapFactory.Options().apply { inPreferredConfig = android.graphics.Bitmap.Config.HARDWARE }
+        context.assets.open(path).use { BitmapFactory.decodeStream(it, null, opts) }?.asImageBitmap()?.also { cache.put(path, it) }
     }.getOrNull()
 
     suspend fun preload(context: Context, c: Character, outfit: Outfit?) = withContext(Dispatchers.IO) {
@@ -104,8 +109,8 @@ fun SpriteFrame(character: Character, outfit: Outfit?, frame: Int, modifier: Mod
         if (outfit != null && value == null) value = withContext(Dispatchers.IO) { Sprites.load(context, Sprites.path(character, outfit, frame)) }
     }
     Box(modifier) {
-        body?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
-        if (outfit != null) acc?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
+        body?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize(), filterQuality = FilterQuality.High) }
+        if (outfit != null) acc?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize(), filterQuality = FilterQuality.High) }
     }
 }
 
@@ -251,6 +256,7 @@ fun PlushCharacter(
     fun current(): Key = motion?.let { sample(MOTIONS.getValue(it).second, motionT.value) } ?: Key(0f)
     fun bobTy() = if (floaty) -0.04f * bob.value else 0f
 
+    val size = size.coerceAtMost(Sprites.MAX_DP.dp)   // 칸보다 크게 늘리지 않는다
     BoxWithConstraints(
         modifier
             .size(size)

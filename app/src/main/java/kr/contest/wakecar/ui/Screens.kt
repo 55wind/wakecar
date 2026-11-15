@@ -100,6 +100,7 @@ fun KText(text: String, color: Color, style: TextStyle, modifier: Modifier = Mod
 /** 장면 안 캐릭터 자리: 가로 비율 x, 바닥선 비율 ground(스프라이트 칸에서 바닥은 위에서 84%). */
 @Composable
 fun BoxScope.CharacterSpot(ui: UiState, c: NapController, x: Float, ground: Float, size: Dp, pose: Pose, favoriteKey: Int = 0) {
+    val size = size.coerceAtMost(Sprites.MAX_DP.dp)   // 스프라이트 칸(512px)보다 크게 늘리지 않는다
     BoxWithConstraints(Modifier.matchParentSize()) {
         val g = Growth.char(ui.growth, ui.settings.character.asset)
         PlushCharacter(
@@ -153,7 +154,7 @@ fun SetupScreen(ui: UiState, c: NapController, land: Boolean, sky: Sky, sunT: Fl
 private fun StageCard(ui: UiState, c: NapController, sky: Sky, sunT: Float, favoriteKey: Int, onGrow: () -> Unit, onRequestSpeed: () -> Unit, modifier: Modifier) {
     SkyScene(sky, sunT, modifier.clip(StageShape)) {
         BoxWithConstraints(Modifier.matchParentSize()) {
-            val size = (maxWidth * .62f).coerceAtMost(maxHeight * .78f)
+            val size = (maxWidth * .62f).coerceAtMost(maxHeight * .78f).coerceAtMost(Sprites.MAX_DP.dp)
             CharacterSpot(ui, c, x = .5f, ground = .8f, size = size, pose = basePose(ui), favoriteKey = favoriteKey)
         }
         Column(Modifier.align(Alignment.TopStart).padding(40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -346,7 +347,7 @@ fun GrowHud(ui: UiState, onGrow: () -> Unit, modifier: Modifier) {
 @Composable
 fun SleepingScreen(ui: UiState, c: NapController, sky: Sky, sunT: Float) {
     SkyScene(sky, sunT, Modifier.fillMaxSize()) {
-        CharacterSpot(ui, c, x = .5f, ground = .9f, size = 560.dp, pose = basePose(ui))
+        CharacterSpot(ui, c, x = .5f, ground = .9f, size = 512.dp, pose = basePose(ui))
         Column(Modifier.align(Alignment.TopCenter).padding(top = 110.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (ui.nap.stage >= 1) {
                 Text("곧 깨워 드릴게요", color = Tone.Ink, style = Type.HeadL)

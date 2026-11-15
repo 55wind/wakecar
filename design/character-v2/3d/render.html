@@ -10,7 +10,7 @@ const canvas = document.getElementById('c');
 const st = await makeStage(canvas, { size: 960 });
 const { renderer, scene, camera, THREE } = st;
 const EXPR = ['awake', 'drowsy', 'sleep', 'happy', 'surprise', 'love', 'wink'];
-const FRAME = 320, TURN = 48, START = 20, COLS = 28, ROWS = 2;   // 55칸을 28열 2줄 격자로(웹피 최대 폭 제한)
+const FRAME = 512, TURN = 48, START = 20, COLS = 28, ROWS = 2;   // 칸 512px: 앱에서 가장 크게 그리는 크기(512dp)와 같아 늘리지 않는다   // 55칸을 28열 2줄 격자로(웹피 최대 폭 제한)
 let current = null;
 function show(obj) { if (current) scene.remove(current); current = obj; scene.add(obj); }
 function shot(obj, yaw) { obj.rotation.y = yaw * Math.PI / 180; renderer.render(scene, camera); }
@@ -19,7 +19,7 @@ const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
 window.sheet = (key, acc = null) => {
   const out = document.createElement('canvas'); out.width = FRAME * COLS; out.height = FRAME * ROWS;
   const at = i => [(i % COLS) * FRAME, Math.floor(i / COLS) * FRAME];
-  const g = out.getContext('2d');
+  const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';   // 960 렌더를 512로 줄여 가장자리를 매끈하게
   st.ground.visible = false; st.contact.visible = false;
   const make = e => {
     const o = buildCharacter(key, e);
@@ -33,7 +33,7 @@ window.sheet = (key, acc = null) => {
   for (let i = 0; i < TURN; i++) { shot(awake, START + i * 360 / TURN); g.drawImage(canvas, ...at(i), FRAME, FRAME); }
   EXPR.forEach((e, j) => { const o = make(e); show(o); shot(o, START); g.drawImage(canvas, ...at(TURN + j), FRAME, FRAME); });
   st.ground.visible = true; st.contact.visible = true;
-  return out.toDataURL('image/webp', .86);
+  return out.toDataURL('image/webp', .93);
 };
 window.still = (key, expr, yaw, size = 640) => { show(buildCharacter(key, expr)); shot(current, yaw); return canvas.toDataURL('image/png'); };
 // 네 캐릭터 단체 사진(앱 아이콘용)
