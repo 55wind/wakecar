@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>render</title>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/examples/jsm/":"./node_modules/three/examples/jsm/"}}</script>
+</head><body style="margin:0;background:#888">
+<canvas id="c" width="960" height="960"></canvas>
+<script type="module">
+import { buildCharacter, makeStage, accessory, ACC_KEYS } from './plush.js';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+const canvas = document.getElementById('c');
+const st = await makeStage(canvas, { size: 960 });
+const { renderer, scene, camera, THREE } = st;
+const EXPR = ['awake', 'drowsy', 'sleep', 'happy', 'surprise', 'love', 'wink'];
+const FRAME = 320, TURN = 48, START = 20, COLS = 28, ROWS = 2;   // 55칸을 28열 2줄 격자로(웹피 최대 폭 제한)
+let current = null;
+function show(obj) { if (current) scene.remove(current); current = obj; scene.add(obj); }
+function shot(obj, yaw) { obj.rotation.y = yaw * Math.PI / 180; renderer.render(scene, camera); }
+const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
+// 한 줄: 회전 24장(START도부터 15도씩, 깬 표정) + 표정 7장(START도). acc가 있으면 소품만 그린 겹침 층(몸은 깊이만 기록해 가림 처리).
+window.sheet = (key, acc = null) => {
+  const out = document.createElement('canvas'); out.width = FRAME * COLS; out.height = FRAME * ROWS;
+  const at = i => [(i % COLS) * FRAME, Math.floor(i / COLS) * FRAME];
+  const g = out.getContext('2d');
+  st.ground.visible = false; st.contact.visible = false;
+  const make = e => {
+    const o = buildCharacter(key, e);
+    if (acc) {
+      o.traverse(c => { if (c.isMesh) { c.material = depthOnly; } if (c.isLight) c.visible = false; });
+      o.add(accessory(key, acc));
+    }
+    return o;
+  };
+  const awake = make('awake'); show(awake);
+  for (let i = 0; i < TURN; i++) { shot(awake, START + i * 360 / TURN); g.drawImage(canvas, ...at(i), FRAME, FRAME); }
+  EXPR.forEach((e, j) => { const o = make(e); show(o); shot(o, START); g.drawImage(canvas, ...at(TURN + j), FRAME, FRAME); });
+  st.ground.visible = true; st.contact.visible = true;
+  return out.toDataURL('image/webp', .86);
+};
+window.still = (key, expr, yaw, size = 640) => { show(buildCharacter(key, expr)); shot(current, yaw); return canvas.toDataURL('image/png'); };
+// 네 캐릭터 단체 사진(앱 아이콘용)
+window.group = () => {
+  const grp = new THREE.Group();
+  const lay = { poksin: [-.25, 0, -1.35, 6, .92], mongsil: [1.3, .95, -1.05, -26, .66], kongkong: [-1.15, 0, .45, 24, .8], ppangppi: [1.05, 0, .6, -22, .72] };
+  for (const k of ['poksin', 'mongsil', 'kongkong', 'ppangppi']) { const [x, y, z, yaw, s] = lay[k]; const o = buildCharacter(k, k === 'mongsil' ? 'happy' : k === 'poksin' ? 'awake' : 'happy'); o.position.set(x, y, z); o.rotation.y = yaw * Math.PI / 180; o.scale.setScalar(s); grp.add(o); }
+  show(grp); st.contact.visible = false;
+  camera.position.set(0, 3.0, 8.6); camera.lookAt(0, 1.25, -.3); camera.fov = 30; camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  st.contact.visible = true; camera.fov = 26; camera.position.set(0, 2.2, 7.2); camera.lookAt(0, 1.18, 0); camera.updateProjectionMatrix();
+  return canvas.toDataURL('image/png');
+};
+window.glb = key => new Promise((res, rej) => {
+  const o = buildCharacter(key, 'awake');
+  new GLTFExporter().parse(o, buf => { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode(...b.subarray(i, i + 32768)); res(btoa(s)); }, rej, { binary: true });
+});
+window.ready = true;
+</script></body></html>

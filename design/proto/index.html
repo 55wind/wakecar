@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일어나차 화면 가안 (Pleos Connect)</title>
+<meta name="description" content="차 안 낮잠 앱 일어나차의 Pleos Connect 화면 가안. 함께 자고 깨는 꼬마차 캐릭터와 여섯 화면의 모션을 가로, 세로, 화면 크기별로 확인합니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header class="sim" aria-label="가안 조작">
+  <p class="sim-title">일어나차 가안</p>
+  <div class="sim-group" role="group" aria-label="화면">
+    <button type="button" class="sim-btn" data-go="SETUP" aria-pressed="true">시작</button>
+    <button type="button" class="sim-btn" data-go="SLEEPING" aria-pressed="false">자는 중</button>
+    <button type="button" class="sim-btn" data-go="WAKING" aria-pressed="false">깨우기</button>
+    <button type="button" class="sim-btn" data-go="GUARD" aria-pressed="false">확인 질문</button>
+    <button type="button" class="sim-btn" data-go="REST" aria-pressed="false">쉬는 시간</button>
+    <button type="button" class="sim-btn" data-go="DONE" aria-pressed="false">끝</button>
+    <button type="button" class="sim-btn" id="sunSweep" aria-pressed="false">해 뜨고 지기</button>
+  </div>
+  <div class="sim-group" role="group" aria-label="창 크기">
+    <button type="button" class="sim-btn" data-orient="land" aria-pressed="true">가로 2:0</button>
+    <button type="button" class="sim-btn" data-orient="port" aria-pressed="false">세로 1:1</button>
+  </div>
+  <div class="sim-group" role="group" aria-label="화면 크기">
+    <button type="button" class="sim-btn" data-size="s17" aria-pressed="true">S 17형</button>
+    <button type="button" class="sim-btn" data-size="s146" aria-pressed="false">S 14.6형</button>
+    <button type="button" class="sim-btn" data-size="l129" aria-pressed="false">L 12.9형</button>
+  </div>
+  <div class="sim-group" role="group" aria-label="차량 신호 (Virtual Console 대신)">
+    <button type="button" class="sim-btn" data-car="brake">브레이크</button>
+    <button type="button" class="sim-btn" data-car="wiper">와이퍼</button>
+    <button type="button" class="sim-btn" data-car="winDown">창문 내림</button>
+    <button type="button" class="sim-btn" data-car="winUp">창문 올림</button>
+    <button type="button" class="sim-btn" data-car="door" aria-pressed="false">문 열림</button>
+    <button type="button" class="sim-btn" data-car="gear" aria-pressed="false">기어 D</button>
+  </div>
+  <div class="sim-group" id="eyePreview" role="group" aria-label="깨우기 단계 미리보기" hidden>
+    <button type="button" class="sim-btn" data-wake-stage="1">1단계 눈 감김</button>
+    <button type="button" class="sim-btn" data-wake-stage="2">2단계 졸린 눈</button>
+    <button type="button" class="sim-btn" data-wake-stage="3">3단계 반쯤 뜸</button>
+    <button type="button" class="sim-btn" data-wake-stage="4">4단계 또렷한 눈</button>
+  </div>
+  <button type="button" class="sim-btn" data-open-settings>설정</button>
+</header>
+
+<main class="stage" id="stage">
+  <div class="frame" id="frame" data-orient="land" data-size="s17" data-phase="SETUP">
+
+    <!-- 무대: 하늘(밤, 새벽, 아침), 별, 구름, 언덕, 그리고 함께 자고 깨는 꼬마차.
+         화면이 바뀌면 그 화면의 자리([data-scene-slot])로 옮겨 간다. -->
+    <div class="scene" id="scene" data-sky="night">
+      <div class="sky sky-night"></div>
+      <div class="sky sky-dawn"></div>
+      <div class="sky sky-morning"></div>
+      <div class="sky sky-evening"></div>
+      <button type="button" class="grow-hud" id="growHud" aria-haspopup="dialog"></button>
+      <div class="level-up" id="levelUp" role="status" hidden><b>Lv.2</b><span></span></div>
+      <div class="scene-intro" id="sceneIntro"><p class="scene-clock num" id="sceneClock"></p><p class="scene-greeting" id="sceneGreeting"></p></div>
+      <svg aria-hidden="true" class="stars" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">
+        <circle cx="80" cy="70" r="2.2"/><circle cx="190" cy="140" r="1.6"/><circle cx="260" cy="48" r="2.6" class="tw"/>
+        <circle cx="360" cy="120" r="1.4"/><circle cx="440" cy="60" r="2"/><circle cx="520" cy="160" r="1.6" class="tw tw2"/>
+        <circle cx="610" cy="40" r="2.2"/><circle cx="700" cy="110" r="1.4"/><circle cx="770" cy="56" r="2.8" class="tw tw3"/>
+        <circle cx="860" cy="150" r="1.8"/><circle cx="930" cy="80" r="2.2"/><circle cx="130" cy="220" r="1.4"/>
+        <circle cx="330" cy="230" r="1.8" class="tw"/><circle cx="660" cy="210" r="1.4"/><circle cx="900" cy="240" r="1.6"/>
+        <circle cx="560" cy="260" r="1.2"/><circle cx="40" cy="300" r="1.6"/><circle cx="980" cy="330" r="1.2"/>
+      </svg>
+      <div class="moon"></div>
+      <div class="sun" id="sun"></div>
+      <svg aria-hidden="true" class="clouds" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">
+        <g class="cloud c1">
+          <path d="M78 205 C51 205 46 176 70 163 C66 138 93 119 116 131 C129 103 168 104 182 135 C211 126 238 145 235 169 C262 180 254 209 228 210 H88 Q81 210 78 205Z"/>
+          <path class="cloud-shade" d="M69 185 Q83 202 109 197 H214 Q235 200 243 188 Q241 210 222 210 H88 Q72 208 69 185Z"/>
+        </g>
+        <g class="cloud c2">
+          <path d="M704 157 C680 156 674 130 694 119 C691 96 717 79 738 91 C751 59 795 61 809 91 C837 78 864 97 863 119 C889 122 901 144 888 161 Q882 172 860 172 H720 Q708 171 704 157Z"/>
+          <path class="cloud-shade" d="M693 145 Q710 159 732 157 H858 Q883 159 893 145 Q891 172 860 172 H720 Q697 169 693 145Z"/>
+        </g>
+        <g class="cloud c3"><path d="M444 94 C427 94 426 75 441 71 C441 53 462 47 473 60 C489 47 511 59 508 75 C527 83 518 99 502 99 H451Z"/></g>
+      </svg>
+      <svg aria-hidden="true" class="hills" viewBox="0 0 1000 220" preserveAspectRatio="none">
+        <path class="hill-back" d="M0 120 C160 60 320 70 470 110 C620 150 780 60 1000 90 V220 H0Z"/>
+        <path class="hill-front" d="M0 170 C200 130 380 140 540 160 C720 182 860 140 1000 150 V220 H0Z"/>
+      </svg>
+
+      <!-- 시안용 꼬마차. 이 SVG를 교체해 캐릭터를 변경할 수 있다. -->
+      <div class="sleep-shade"></div>
+      <div class="drive-road" aria-hidden="true"><span></span></div>
+      <button type="button" class="mascot-wrap" id="petCar" aria-label="꼬마차 쓰다듬기">
+        <span class="plush-ground" aria-hidden="true"><span class="plush-shadow" id="plushShadow"></span></span>
+        <span class="plush" id="plush" aria-hidden="true"><span class="plush-body"><span class="plush-motion" id="plushMotion"><span class="plush-layer is-front"><span class="plush-img" id="plushImg"></span><span class="plush-acc" id="plushAcc" hidden></span></span><span class="plush-layer"><span class="plush-img"></span><span class="plush-acc" hidden></span></span></span></span></span>
+        <svg class="mascot" id="mascot" aria-hidden="true" viewBox="0 0 440 320"><defs><clipPath id="sideWindow"><path d="M124 166 Q119 166 122 160 L140 129 Q146 116 158 116 H171 Q176 116 176 121 V162 Q176 166 171 166Z"/></clipPath></defs>
+<ellipse class="m-shadow" id="mShadow" cx="218" cy="277" rx="145" ry="8" opacity=".18"/>
+<g id="mBody"><g id="mShell">
+<path d="M81 183 C84 172 94 168 104 167 L126 128 C139 103 159 96 185 96 H215 C239 96 252 109 263 131 L282 169 L326 174 C350 178 368 190 368 207 V216 C368 234 356 241 335 241 H100 C81 241 70 230 70 213 V204 Q70 192 81 183Z" fill="var(--mascot-body)"/>
+<path d="M282 169 Q305 170 326 174 C350 178 368 190 368 207 V216 C368 234 356 241 335 241 H278 Q289 218 282 169Z" fill="var(--car-nose)"/>
+<path d="M124 166 Q119 166 122 160 L140 129 Q146 116 158 116 H171 Q176 116 176 121 V162 Q176 166 171 166Z" fill="var(--car-side-glass)"/>
+<g clip-path="url(#sideWindow)"><g id="mPane"><path d="M114 110H180V170H114Z" fill="var(--car-side-glass)"/></g></g>
+<path d="M190 116 H216 Q231 116 239 132 L257 160 Q260 166 252 166 H190 Q185 166 185 161 V121 Q185 116 190 116Z" fill="var(--mascot-glass)"/>
+<path d="M181 181V220" fill="none" stroke="var(--car-nose)" stroke-width="2"/>
+<rect x="193" y="181" width="17" height="4" rx="2" fill="var(--mascot-line)"/>
+<path d="M281 173 Q309 173 334 182" fill="none" stroke="var(--car-nose)" stroke-width="2" stroke-linecap="round"/>
+
+<rect x="77" y="189" width="7" height="17" rx="3.5" id="mBrake" fill="var(--mascot-light-off)"/>
+<circle class="m-brake-glow" id="mBrakeGlow" cx="80" cy="197" r="17"/>
+<path d="M79 219H94" stroke="var(--mascot-line)" stroke-width="4" stroke-linecap="round"/>
+<g id="mEyeWrap" transform="translate(297 197)" data-eye-pose="awake"><g class="eye-pose" data-pose="awake"><ellipse class="pupil-gaze" cy="0" rx="5" ry="6.5" fill="var(--mascot-ink)"/></g><g class="eye-pose" data-pose="alert"><ellipse class="pupil-gaze" cy="0" rx="5.5" ry="8" fill="var(--mascot-ink)"/></g><g class="eye-pose" data-pose="drowsy"><path d="M-6 3 Q0 6 6 3 Q5 8 0 8 Q-5 8 -6 3Z" fill="var(--mascot-ink)"/><path d="M-6 0Q0 3 6 0" stroke="var(--mascot-ink)" stroke-width="2" fill="none" stroke-linecap="round"/></g><g class="eye-pose" data-pose="half"><path d="M-6 -1 Q0 2 6 -1 Q6 7 0 7 Q-6 7 -6 -1Z" fill="var(--mascot-ink)"/></g><g class="eye-pose" data-pose="closed"><path d="M-6 2 Q0 9 6 2" stroke="var(--mascot-ink)" stroke-width="2.5" fill="none" stroke-linecap="round"/></g><g class="eye-pose" data-pose="happy"><path d="M-6 2 Q0 -7 6 2" stroke="var(--mascot-ink)" stroke-width="2.5" fill="none" stroke-linecap="round"/></g></g><g id="mEyeLeft" transform="translate(341 198)" data-eye-pose="awake"><g class="eye-pose" data-pose="awake"><ellipse class="pupil-gaze" cy="0" rx="5" ry="6.5" fill="var(--mascot-ink)"/></g><g class="eye-pose" data-pose="alert"><ellipse class="pupil-gaze" cy="0" rx="5.5" ry="8" fill="var(--mascot-ink)"/></g><g class="eye-pose" data-pose="drowsy"><path d="M-6 3 Q0 6 6 3 Q5 8 0 8 Q-5 8 -6 3Z" fill="var(--mascot-ink)"/><path d="M-6 0Q0 3 6 0" stroke="var(--mascot-ink)" stroke-width="2" fill="none" stroke-linecap="round"/></g><g class="eye-pose" data-pose="half"><path d="M-6 -1 Q0 2 6 -1 Q6 7 0 7 Q-6 7 -6 -1Z" fill="var(--mascot-ink)"/></g><g class="eye-pose" data-pose="closed"><path d="M-6 2 Q0 9 6 2" stroke="var(--mascot-ink)" stroke-width="2.5" fill="none" stroke-linecap="round"/></g><g class="eye-pose" data-pose="happy"><path d="M-6 2 Q0 -7 6 2" stroke="var(--mascot-ink)" stroke-width="2.5" fill="none" stroke-linecap="round"/></g></g>
+<ellipse class="m-cheek" cx="286" cy="211" rx="6" ry="3"/><ellipse class="m-cheek" cx="352" cy="212" rx="6" ry="3"/>
+<path id="mMouth" class="new-mouth" d="M309 216Q319 228 329 216" stroke="var(--mascot-ink)" stroke-width="2" fill="none" stroke-linecap="round"/>
+<ellipse class="m-mouth-o" id="mMouthO" cx="319" cy="220" rx="3" ry="4" fill="var(--mascot-ink)"/>
+<g id="mWiper"><path d="M251 163H239" stroke="var(--mascot-line)" stroke-width="2" stroke-linecap="round"/></g>
+</g>
+<g class="m-wheel" id="mWheelR"><circle cx="127" cy="240" r="29" fill="var(--mascot-wheel)"/><circle cx="127" cy="240" r="15" fill="var(--mascot-hub)"/><circle cx="127" cy="230" r="2" fill="var(--car-nose)"/></g>
+<g class="m-wheel" id="mWheelF"><circle cx="276" cy="240" r="29" fill="var(--mascot-wheel)"/><circle cx="276" cy="240" r="15" fill="var(--mascot-hub)"/><circle cx="276" cy="230" r="2" fill="var(--car-nose)"/></g>
+</g>
+<g class="m-zz"><text x="295" y="125">z</text><text x="317" y="103">z</text><text x="335" y="87">z</text></g>
+<g class="m-sparkles" id="mSparkles"><path class="sp sp1" d="m85 125 4 9 9 4-9 4-4 9-4-9-9-4 9-4Z"/><path class="sp sp2" d="m330 140 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/><path class="sp sp3" d="m50 190 2 5 5 2-5 2-2 5-2-5-5-2 5-2Z"/></g>
+<g class="m-wind"><rect x="15" y="160" width="32" height="3" rx="1.5"/><rect x="2" y="176" width="40" height="3" rx="1.5"/></g>
+<g class="pet-hearts"><path d="M110 122C89 108 99 94 110 104C121 94 131 108 110 122Z"/><path d="M211 87C190 73 200 59 211 69C222 59 232 73 211 87Z"/><path d="M326 130C305 116 315 102 326 112C337 102 347 116 326 130Z"/></g></svg>
+      </button>
+    </div>
+
+    <!-- 1. 시작 -->
+    <section class="screen setup" id="s-SETUP" data-phase="SETUP">
+      <div class="stage-card" data-scene-slot>
+        <ul class="chips" aria-label="시작 전 확인">
+          <li class="chip" data-check="gear"><svg class="ico ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span>기어 P</span></li>
+          <li class="chip"><svg class="ico ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span>0km/h</span></li>
+          <li class="chip" data-check="door"><svg class="ico ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span>문 닫힘</span></li>
+          <li class="chip"><svg class="ico ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span>잠김</span></li>
+          <li class="chip"><svg class="ico ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span class="num">배터리 82%</span></li>
+        </ul>
+      </div>
+
+      <div class="setup-main">
+        <nav class="pagenav" aria-label="앱">
+          <img class="pagenav-icon" src="assets/app-icon.webp" alt="" width="56" height="56">
+          <h1 class="pagenav-title">일어나차</h1>
+          <button type="button" class="btn btn-basic settings-open" data-open-settings aria-label="설정"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-.7 2.5-2.1 1.2-2.5-.6-2 3.5 1.8 1.9v2.4l-1.8 1.9 2 3.5 2.5-.6 2.1 1.2L9 22h4l.7-2.6 2.1-1.2 2.5.6 2-3.5-1.8-1.9V11l1.8-1.9-2-3.5-2.5.6-2.1-1.2L13 3Z"/><circle cx="11" cy="12.5" r="3.5"/></svg></button>
+        </nav>
+        <div class="wake-block">
+          <p class="wake-label" id="wakeLabel">깨울 시각</p>
+          <p class="wake-time num" id="wakeTime">15:42</p>
+          <p class="wake-note" id="wakeNote">15분 낮잠</p>
+        </div>
+
+        <div class="seg" id="seg" role="radiogroup" aria-label="얼마나 잘지">
+          <span class="seg-hl" id="segHl" aria-hidden="true"></span>
+          <button type="button" role="radio" aria-checked="false" data-min="10">10분</button>
+          <button type="button" role="radio" aria-checked="true" data-min="15">15분</button>
+          <button type="button" role="radio" aria-checked="false" data-min="20">20분</button>
+          <button type="button" role="radio" aria-checked="false" data-mode="time">시각으로</button>
+        </div>
+
+        <div class="stepper" id="stepper" hidden>
+          <button type="button" class="btn btn-basic step-btn" id="earlier" aria-label="복귀 시각 5분 앞당기기"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>5분</button>
+          <p class="stepper-value"><span class="num" id="returnBy">16:00</span>까지 자리로</p>
+          <button type="button" class="btn btn-basic step-btn" id="later" aria-label="복귀 시각 5분 늦추기"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>5분</button>
+        </div>
+        <p class="caption" id="stepperNote" hidden>이동 5분 + 잠 깨기 3분 제외</p>
+
+        <div class="toggles">
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <p class="toggle-title" id="t-seat">등받이 일으키기</p>
+              <p class="caption">반응이 없을 때 자동으로 세워요.</p>
+            </div>
+            <button type="button" class="switch" role="switch" aria-checked="false" aria-labelledby="t-seat" id="swSeat"><span class="knob"></span></button>
+          </div>
+          <div class="toggle-row alarm-row">
+            <div class="toggle-text">
+              <p class="toggle-title" id="t-alarm">깨우는 소리</p>
+              <p class="caption" id="setupAlarm">해 뜨는 피아노, 3분 전부터 점점 크게</p>
+            </div>
+            <button type="button" class="btn btn-basic alarm-change" data-open-settings aria-describedby="t-alarm">바꾸기</button>
+          </div>
+
+        </div>
+
+        <div class="start-area">
+          <button type="button" class="btn btn-fill btn-l btn-start" id="startBtn">낮잠 시작</button>
+          <p class="notice notice-danger" id="blockNotice" hidden>
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Zm0 6v5m0 3v.5"/></svg>
+            <span id="blockText">기어를 P에 놓으면 시작할 수 있어요.</span>
+          </p>
+          <p class="caption">밀폐된 곳에서는 시동을 켠 채 자지 마세요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 자는 중 -->
+    <section class="screen sleep full" id="s-SLEEPING" data-phase="SLEEPING" hidden>
+      <div class="bleed" data-scene-slot></div>
+      <div class="sleep-top">
+        <p class="sleep-count" id="sleepCount"><span class="num" id="sleepMin">15</span><span class="sleep-unit">분 남음</span></p>
+        <p class="sleep-count sleep-soon" id="sleepSoon" hidden>곧 깨워 드릴게요</p>
+        <p class="sleep-alarm" id="sleepAlarm">해 뜨는 피아노로 깨워 드릴게요</p>
+        
+      </div>
+      <button type="button" class="btn btn-quiet" id="endNap">그만 자기</button>
+    </section>
+
+    <!-- 3. 깨우기 -->
+    <section class="screen wake full" id="s-WAKING" data-phase="WAKING" hidden>
+      <div class="bleed" data-scene-slot></div>
+      <div class="wake-main">
+        <p class="wake-lead" id="wakeLead">일어날 시간이에요</p>
+        <article class="mission-card">
+          <div class="mission-ico" id="missionIco" aria-hidden="true"></div>
+          <div class="mission-body">
+            <h2 class="mission" id="missionText">브레이크를 두 번 밟아 주세요.</h2>
+            <ol class="track" id="track" aria-label="미션 진행">
+              <li class="track-step"><span class="dot"><b>1</b></span><span class="track-name">한 번</span></li>
+              <li class="track-step"><span class="dot"><b>2</b></span><span class="track-name">두 번</span></li>
+            </ol>
+          </div>
+        </article>
+      </div>
+      <div class="wake-side">
+        <ol class="stages" id="stages" aria-label="깨우기 단계">
+          <li data-stage="1"><span class="dot"><b>1</b></span><span id="stage1Label">작은 알람</span></li>
+          <li data-stage="2"><span class="dot"><b>2</b></span><span>알람과 미션</span></li>
+          <li data-stage="3"><span class="dot"><b>3</b></span><span id="stage3Label">바람 세게</span></li>
+          <li data-stage="4"><span class="dot"><b>4</b></span><span>알람 최대</span></li>
+        </ol>
+        <p class="visually-hidden" id="stageTitle">깨우기 2단계</p>
+        <div class="hold-area">
+          <button type="button" class="hold" data-hold aria-describedby="holdHint1">
+            <span class="hold-fill" aria-hidden="true"></span>
+            <span class="hold-label">비상 종료</span>
+            <span class="hold-label hold-label-on" aria-hidden="true">비상 종료</span>
+          </button>
+          <p class="caption on-sky" id="holdHint1">3초 길게 누르기</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 확인 질문 -->
+    <section class="screen guard full" id="s-GUARD" data-phase="GUARD" hidden>
+      <div class="bleed" data-scene-slot></div>
+      <div class="guard-main">
+        <p class="guard-lead" id="guardLead">확인 1 / 2</p>
+        <h2 class="question" id="question">오늘이 무슨 요일이에요?</h2>
+        <div class="choices" id="choices">
+          <button type="button" class="choice">일요일</button>
+          <button type="button" class="choice">화요일</button>
+          <button type="button" class="choice">목요일</button>
+        </div>
+        <div class="guard-foot">
+          <button type="button" class="btn btn-basic" id="snooze">5분만 더</button>
+          <div class="countdown">
+            <div class="cd-track"><span class="cd-bar" id="cdBar"></span></div>
+            <p class="caption on-sky"><span class="num" id="cdSec">20</span>초 후 다시 알림</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. 쉬는 시간 -->
+    <section class="screen rest full" id="s-REST" data-phase="REST" hidden>
+      <div class="bleed" data-scene-slot></div>
+      <div class="rest-text">
+        
+        <h2 class="rest-title">잠깐 쉬어 가세요</h2>
+        
+        <div class="ring-row">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-track" cx="60" cy="60" r="52"/>
+            <circle class="ring-bar" id="ringBar" cx="60" cy="60" r="52"/>
+          </svg>
+          <p class="rest-left" id="restLeftLine"><span class="num" id="restLeft">10</span><span id="restUnit">분 남았어요.</span></p>
+        </div>
+        <div class="rest-actions">
+          <button type="button" class="btn btn-basic btn-l" id="endRest">휴식 끝내기</button>
+          <button type="button" class="btn btn-fill btn-l" id="depart" disabled>출발할게</button>
+        </div>
+        <p class="caption on-sky">졸리면 운전하지 마세요.</p>
+      </div>
+    </section>
+
+    <!-- 6. 끝 -->
+    <section class="screen done full" id="s-DONE" data-phase="DONE" hidden>
+      <div class="bleed" data-scene-slot></div>
+      <div class="done-main">
+        <div class="done-head">
+          <svg class="success" id="success" viewBox="0 0 88 88" aria-hidden="true">
+            <circle class="success-disc" cx="44" cy="44" r="40"/>
+            <path class="success-check" id="successCheck" d="M26 45.5l12 12L63 32"/>
+          </svg>
+          <h2 class="done-title" id="doneTitle">조심히 다녀오세요</h2>
+        </div>
+        <dl class="stats" id="stats">
+          <div class="stat"><dt>잔 시간</dt><dd class="num" id="statSlept">15분</dd></div>
+          <div class="stat"><dt>반응 시간</dt><dd class="num" id="statResp">12초</dd></div>
+          <div class="stat" id="statRealarmWrap"><dt>다시 깨운 횟수</dt><dd class="num" id="statRealarm">1번</dd></div>
+        </dl>
+        
+        
+        <div class="reward" id="reward" aria-live="polite"></div>
+        <button type="button" class="btn btn-fill btn-l" id="resetBtn">처음으로</button>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<dialog class="settings-dialog" id="settings" aria-labelledby="settingsTitle">
+  <div class="settings-head"><h2 id="settingsTitle">설정</h2><button type="button" class="btn btn-basic" id="closeSettings">완료</button></div>
+  <section class="settings-group" aria-labelledby="gChar">
+    <h3 class="settings-sub" id="gChar">캐릭터</h3>
+    <p class="setting-hint">카드를 누르면 좋아하는 모션을 보여 줘요. 화면 속 캐릭터는 옆으로 끌면 360도로 돌아가요.</p>
+    <div class="char-options" id="charOptions" role="radiogroup" aria-label="캐릭터"></div>
+  </section>
+  <section class="settings-group" aria-labelledby="gWake">
+    <h3 class="settings-sub" id="gWake">깨울 때</h3>
+    <div class="alarm-options" role="radiogroup" aria-label="알람 소리">
+      <button type="button" class="alarm-option" role="radio" aria-checked="true" data-alarm="sunrise"><b>해 뜨는 피아노</b><span>낮은 화음에서 시작해 밝은 음으로 올라가요</span></button>
+      <button type="button" class="alarm-option" role="radio" aria-checked="false" data-alarm="forest"><b>새벽 숲</b><span>먼 새소리가 가까워지고 많아져요</span></button>
+      <button type="button" class="alarm-option" role="radio" aria-checked="false" data-alarm="musicbox"><b>오르골</b><span>맑은 종소리 선율이 점점 빨라져요</span></button>
+      <button type="button" class="alarm-option" role="radio" aria-checked="false" data-alarm="drive"><b>출발 신호</b><span>경쾌한 마림바에 빵빵 소리가 더해져요</span></button>
+    </div>
+    <div class="setting-row"><span class="setting-label"><span id="rampLabel">점점 크게 깨우기</span><small>깨우기 3분 전부터 아주 작게 시작해 단계마다 키워요.</small></span><button type="button" class="settings-switch" role="switch" aria-checked="true" aria-labelledby="rampLabel" id="rampToggle"><span></span></button></div>
+    <div class="setting-field"><label for="alarmVolume">알람 최대 음량 <output id="alarmVolumeValue" for="alarmVolume">70%</output></label><input type="range" id="alarmVolume" min="10" max="100" value="70"></div>
+    <div class="settings-actions"><button type="button" class="btn btn-basic" id="previewAlarm" aria-pressed="false">알람 미리듣기 (16초)</button></div>
+  </section>
+  <section class="settings-group" aria-labelledby="gSleep">
+    <h3 class="settings-sub" id="gSleep">잠들 때</h3>
+    <div class="setting-row"><span id="musicLabel">수면 음악</span><button type="button" class="settings-switch" role="switch" aria-checked="true" aria-labelledby="musicLabel" id="musicToggle"><span></span></button></div>
+    <div class="music-only">
+      <label class="setting-field" for="musicTrack">음악<select id="musicTrack"><option value="piano">고요한 피아노</option><option value="ambient">느린 앰비언트</option><option value="rain">창밖의 빗소리</option><option value="waves">파도 호흡</option><option value="cabin">달리는 차 안</option></select></label>
+      <p class="setting-hint" id="musicHint">분당 60박에서 52박으로 천천히 느려져요.</p>
+      <div class="setting-row"><span class="setting-label"><span id="fadeLabel">잠들면 서서히 줄이기</span><small>낮잠 길이의 절반 동안 30%까지 줄여요.</small></span><button type="button" class="settings-switch" role="switch" aria-checked="true" aria-labelledby="fadeLabel" id="fadeToggle"><span></span></button></div>
+      <div class="setting-field"><label for="audioVolume">수면 음악 음량 <output id="volumeValue" for="audioVolume">35%</output></label><input type="range" id="audioVolume" min="0" max="100" value="35"></div>
+      <div class="settings-actions"><button type="button" class="btn btn-basic" id="previewMusic" aria-pressed="false">수면 음악 미리듣기</button></div>
+    </div>
+  </section>
+  <section class="settings-group" aria-label="기타">
+    <div class="setting-row"><span id="fxLabel">효과음</span><button type="button" class="settings-switch" role="switch" aria-checked="true" aria-labelledby="fxLabel" id="fxToggle"><span></span></button></div>
+  </section>
+  <div class="setting-demo">          <div class="toggle-row">
+            <div class="toggle-text">
+              <p class="toggle-title" id="t-demo">시연 모드</p>
+              
+            </div>
+            <button type="button" class="switch" role="switch" aria-checked="true" aria-labelledby="t-demo" id="swDemo"><span class="knob"></span></button>
+          </div></div>
+</dialog>
+<dialog class="settings-dialog grow-dialog" id="growDialog" aria-labelledby="gTitle">
+  <div class="settings-head"><div class="g-head"><span class="g-item-pic g-preview" id="gPreview"><span class="g-item-base"></span><span class="g-item-acc"></span></span><div><p class="g-level" id="gLevel">Lv.1</p><h2 id="gTitle">아기 콩콩</h2></div></div><button type="button" class="btn btn-basic" id="closeGrow">닫기</button></div>
+  <div class="g-exp" id="gExp"></div>
+  <p class="setting-hint" id="gNext"></p>
+  <p class="g-coins-line" id="gCoins"></p>
+  <section class="settings-group" aria-labelledby="gStatT"><h3 class="settings-sub" id="gStatT">상태</h3><div id="gStats"></div></section>
+  <section class="settings-group" aria-labelledby="gQuestT"><h3 class="settings-sub" id="gQuestT">오늘의 할 일</h3><ul class="g-quests" id="gQuests"></ul></section>
+  <section class="settings-group" aria-labelledby="gShopT"><h3 class="settings-sub" id="gShopT">옷장</h3><p class="setting-hint">별사탕으로 소품을 사서 입혀요. 다시 누르면 벗어요.</p><ul class="g-shop" id="gShop"></ul></section>
+</dialog>
+<script src="audio.js"></script>
+<script src="spring.js"></script>
+<script src="chars.js"></script>
+<script src="grow.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

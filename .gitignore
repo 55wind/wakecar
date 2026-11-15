@@ -49,3 +49,15 @@
 
 # 옛 동작(등받이 젖힘, 외기) 기준 그림. 기획서 v2와 맞지 않아 저장소에서 뺌
 /docs/figures/
+
+# 디자인 도구의 설치물과 중간 산출물(앱 자산은 design/scripts로 다시 만든다)
+/design/character-v2/3d/node_modules/
+/design/character-v2/3d/out/*_awake.png
+/design/character-v2/3d/out/*_drowsy.png
+/design/character-v2/3d/out/*_sleep.png
+/design/character-v2/3d/out/*_happy.png
+/design/character-v2/3d/out/*_surprise.png
+/design/character-v2/3d/out/*_love.png
+/design/character-v2/3d/out/*_wink.png
+/design/character-v2/3d/out/*_yaw*.png
+/design/shots/

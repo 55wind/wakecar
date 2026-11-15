@@ -1,0 +1,70 @@
+/* Pleos Connect UI Design Guide 2.1.5 dark theme + design assets 2.1.5 (Figma), mapped to role names.
+   Source: document.pleos.ai > Foundations (Colors, Typography, Shadow, Interaction).
+   Pleos token in each comment; values read from the guide's tables, 2026-11-15. */
+:root {
+  /* spacing (8dp grid) */
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+
+  /* type: Pleos Font Hierarchy (dp = px on a 160dpi Connect-S panel) */
+  --text-headline-l: 60px; --text-headline-m: 56px; --text-headline-s: 48px;
+  --text-title-l: 40px; --text-title-m: 36px; --text-title-s: 32px;
+  --text-body-l: 30px; --text-body-m: 28px; --text-body-s: 26px;
+  --text-label-m: 24px; --text-label-s: 20px;
+  --text-xs: var(--text-label-s); --text-sm: var(--text-label-m); --text-md: var(--text-body-s); --text-lg: var(--text-body-l); --text-xl: var(--text-title-s); --text-2xl: var(--text-title-l); --text-3xl: var(--text-headline-l);
+  --text-display-s: var(--text-headline-s); --text-display: var(--text-headline-l); --text-section: var(--text-title-l); --text-title: var(--text-title-s); --text-lead: var(--text-body-l);
+  --weight-extra: 800; --weight-bold: 700; --weight-strong: 600; --weight-normal: 400;
+
+  /* motion: Pleos interaction (press = scale 95%) + duration tokens */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --press-scale: 0.95;
+  --hold-ms: 3000;            /* 비상 종료: 3초 길게 누르기 (Pleos long press 2~3s) */
+
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --container: 1680px; --gutter: 48px; --gap-columns: 48px;
+
+  /* colour: Pleos dark theme */
+  --color-paper: #1D1E21;                  /* background_primary = basic_50 */
+  --color-paper-2: #131417;                /* background_secondary, surface_low = basic_00 */
+  --color-paper-3: #313236;                /* surface_high, background_popup = basic_100 */
+  --color-paper-4: #44464E;                /* surface_accent = basic_200 */
+  --color-ink: #FFFFFF;                    /* text_primary = basic_static_light_100 */
+  --color-ink-2: rgb(255 255 255 / 0.84);  /* text_secondary = basic_static_light_200 */
+  --color-muted: rgb(255 255 255 / 0.64);  /* text_tertiary = basic_static_light_300 */
+  --color-faint: rgb(255 255 255 / 0.32);  /* text_quaternary = basic_static_light_400, disabled only */
+  --color-rule: rgb(255 255 255 / 0.10);   /* basic_alpha_light_100 */
+  --color-fill: #E0E1E6;                   /* button_filled_enabled (dark) = basic_600 */
+  --color-fill-pressed: #C7C9CE;           /* basic_500 */
+  --color-on-fill: #131417;                /* basic_static_dark_100 */
+  --color-accent: #0082FF;                 /* informative_positive (dark) */
+  --color-accent-ink: #131417;
+  --color-focus: #0082FF;
+  --color-ok: #00E074;                     /* informative_active, switch_on */
+  --color-danger: #FF4C28;                 /* informative_negative */
+  --color-wake: #FFC224;                   /* regulation_yellow: the dawn signal, waking only */
+  --color-on-wake: #131417;
+  --color-sleep: #131417;                  /* basic_static_dark_100 */
+  --color-error: var(--color-danger); --color-success: var(--color-ok);
+
+  --font-display: "Asta Sans", "Pretendard", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Asta Sans", "Pretendard", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: var(--font-body);
+
+  /* shape */
+  /* from Pleos_Connect_design_assets_215.fig (ivi_basic_button, ivi_segmented_control/solid, switch) */
+  --radius-control-l: 32px; /* button Large 100dp, segmented Large container */
+  --radius-control: 24px;   /* button Medium 80dp, segmented item 84dp */
+  --radius-inner: 24px;     /* segmented selected item */
+  --radius-icon: 20px;      /* icon button 80dp */
+  --radius-panel: 32px;     /* panels */
+  --radius-switch: 16px; --radius-knob: 8px;   /* switch 80x48, knob 32x32 */
+  --radius-card: var(--radius-panel); --radius-pill: 999px;
+  --rule-hair: 1px;
+  --shadow-1: 0 6px 24px 0 rgb(0 0 0 / 0.08);                                  /* Shadow level 1 */
+  --shadow-2: 0 8px 32px 0 rgb(0 0 0 / 0.16), 0 2px 2px 0 rgb(0 0 0 / 0.08);   /* Shadow level 2 */
+  --shadow-card: none;
+  --tracking-display: 0;
+
+  /* control heights from the Figma components: Large 100, Medium 80, Small 64 */
+  --hit-l: 100px; --hit-m: 80px; --hit-s: 64px;
+}

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일어나차 캐릭터 2D 시안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root { --ink: #1E2233; --muted: #6A7088; --paper: #F6F4EF; --card: #FFFFFF; --rule: #E4E1D8; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: Pretendard, system-ui, sans-serif; background: var(--paper); color: var(--ink); padding: 48px 56px 80px; }
+  header.page { max-width: 1480px; margin: 0 auto 36px; }
+  header.page h1 { font-size: 36px; font-weight: 800; letter-spacing: -.02em; }
+  header.page p { margin-top: 10px; font-size: 18px; color: var(--muted); line-height: 1.6; max-width: 70ch; }
+  .concept { max-width: 1480px; margin: 0 auto 32px; background: var(--card); border-radius: 28px; padding: 32px 36px; display: grid; grid-template-columns: 320px 1fr; gap: 28px; }
+  .meta .tag { display: inline-block; font-weight: 800; font-size: 15px; padding: 6px 12px; border-radius: 999px; background: var(--swatch); color: #1E2233; }
+  .meta h2 { font-size: 40px; font-weight: 800; margin-top: 12px; letter-spacing: -.02em; }
+  .meta .line { margin-top: 10px; font-size: 18px; line-height: 1.55; }
+  .meta ul { margin-top: 16px; padding-left: 20px; color: var(--muted); font-size: 16px; line-height: 1.7; }
+  .meta .spin { margin-top: 20px; }
+  .meta .spin label { font-size: 14px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .meta .spin input { width: 100%; accent-color: #2E7D6A; }
+  .rows h3 { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 8px; letter-spacing: .02em; }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
+  .row.expr { grid-template-columns: repeat(4, 1fr) 1fr; }
+  figure { background: linear-gradient(180deg, #F3F6FB, #E9EDF6); border-radius: 18px; padding: 6px 6px 10px; text-align: center; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 14px; color: var(--muted); }
+  .live { background: linear-gradient(180deg, #1B2148, #2C3570); }
+  .live figcaption { color: #C9CFF5; }
+  footer { max-width: 1480px; margin: 24px auto 0; color: var(--muted); font-size: 15px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>일어나차 캐릭터 2D 시안 (3D 모델링 전)</h1>
+  <p>네 안 모두 동그란 생물이 주인공이고, 자동차는 소품 하나로만 남겼습니다. 각 안은 3D 좌표로 설계했기 때문에 아래 돌려 보기 막대로 360도를 미리 볼 수 있습니다. 고르신 안을 그대로 3D 모델로 옮깁니다.</p>
+</header>
+<main id="list"></main>
+<footer>표정 네 가지는 깨우기 단계(자는 중, 졸림, 깸, 기분 좋음)에 맞춘 것입니다. 색과 이름은 가안이며, 치이카와 씽씽이 SOL프렌즈의 그림이나 형태를 옮기지 않은 원작입니다.</footer>
+<script src="rig.js"></script>
+<script src="characters.js"></script>
+<script>
+  const ANGLES = [[0, '정면'], [40, '3/4'], [90, '옆'], [145, '뒤 3/4'], [180, '뒤']];
+  const EXPR = [['sleep', '자는 중'], ['drowsy', '졸림'], ['awake', '깸'], ['happy', '기분 좋음']];
+  const draw = (ch, yaw, expr) => Rig.sceneSVG({ yaw, expr, build: ch.build, float: ch.float });
+  const list = document.getElementById('list');
+  for (const [key, ch] of Object.entries(CHARS)) {
+    const sec = document.createElement('section');
+    sec.className = 'concept'; sec.id = key; sec.style.setProperty('--swatch', ch.color);
+    sec.innerHTML = `
+      <div class="meta"><span class="tag">${ch.tag}</span><h2>${ch.name}</h2><p class="line">${ch.line}</p>
+        <ul>${ch.points.map(p => `<li>${p}</li>`).join('')}</ul>
+        <div class="spin"><label for="spin-${key}">돌려 보기 <output>20</output>도</label><input type="range" id="spin-${key}" min="0" max="359" value="20"></div></div>
+      <div class="rows">
+        <h3>360도 돌려 보기</h3>
+        <div class="row">${ANGLES.map(([a, n]) => `<figure>${draw(ch, a, 'awake')}<figcaption>${n}</figcaption></figure>`).join('')}</div>
+        <h3>표정 (깨우기 단계)</h3>
+        <div class="row expr">${EXPR.map(([e, n]) => `<figure>${draw(ch, 15, e)}<figcaption>${n}</figcaption></figure>`).join('')}<figure class="live" data-live>${draw(ch, 20, 'awake')}<figcaption>돌려 보기</figcaption></figure></div>
+      </div>`;
+    list.append(sec);
+    const input = sec.querySelector('input'), out = sec.querySelector('output'), live = sec.querySelector('[data-live]');
+    input.addEventListener('input', () => { out.textContent = input.value; live.querySelector('svg').outerHTML = draw(ch, +input.value, 'awake'); });
+  }
+</script>
+</body>
+</html>
