@@ -78,10 +78,11 @@ def texts():
     adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml')
     xml = adb('shell', 'cat', '/sdcard/ui.xml')
     found = []
-    for m in re.finditer(r'text="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml):
-        t, x1, y1, x2, y2 = m.group(1), *map(int, m.groups()[1:])
-        if t:
-            found.append((t, (x1 + x2) // 2, (y1 + y2) // 2))
+    # 글자(text)와 아이콘 버튼의 이름(content-desc, 예: 설정)을 함께 찾는다
+    for m in re.finditer(r'text="([^"]*)"[^>]*?content-desc="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml):
+        t, d, x1, y1, x2, y2 = m.group(1), m.group(2), *map(int, m.groups()[2:])
+        if t or d:
+            found.append((t or d, (x1 + x2) // 2, (y1 + y2) // 2))
     return found
 
 
@@ -96,6 +97,20 @@ def tap(text):
         if text in t:
             adb('shell', 'input', 'tap', str(x), str(y))
             return True
+    print('  !! 화면에 없음:', text)
+    return False
+
+
+def tap_scrolled(text, tries=6):
+    """설정 창처럼 길어서 아래에 숨은 항목은 위로 밀어 올리며 찾는다."""
+    for _ in range(tries):
+        found = [(x, y) for t, x, y in texts() if text in t]
+        if found:
+            adb('shell', 'input', 'tap', str(found[0][0]), str(found[0][1]))
+            return True
+        anchor = [(x, y) for t, x, y in texts() if t == '완료']
+        x = (anchor[0][0] - 300) if anchor else 1600
+        adb('shell', 'input', 'swipe', str(x), '1150', str(x), '450', '400'); time.sleep(0.8)
     print('  !! 화면에 없음:', text)
     return False
 
@@ -211,7 +226,10 @@ def step_block():
 def step_sleep():
     front()
     car(' (낮잠 전)')
-    tap('시연 모드'); time.sleep(1.0)
+    # 시연 모드는 설정 창(톱니 단추) 안에 있다
+    tap('설정'); time.sleep(1.0)
+    tap_scrolled('시연 모드'); time.sleep(1.0)
+    tap('완료'); time.sleep(1.0)
     show('시연 모드 켬'); shot('03_setup_demo')
     tap('낮잠 시작'); time.sleep(3.5)
     show('자는 중'); shot('04_sleeping'); car(' (자는 중)')
