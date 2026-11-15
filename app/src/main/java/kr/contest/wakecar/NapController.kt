@@ -10,9 +10,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kr.contest.wakecar.audio.AlarmPlayer
+import kr.contest.wakecar.audio.SoundEngine
 import kr.contest.wakecar.audio.Speaker
 import kr.contest.wakecar.core.Effect
+import kr.contest.wakecar.core.Growth
+import kr.contest.wakecar.core.GrowthState
+import kr.contest.wakecar.core.LevelUp
+import kr.contest.wakecar.core.Outfit
+import kr.contest.wakecar.core.Quest
+import kr.contest.wakecar.core.Reward
 import kr.contest.wakecar.core.NapSession
 import kr.contest.wakecar.core.NapState
 import kr.contest.wakecar.core.NapStats
@@ -23,6 +29,9 @@ import kr.contest.wakecar.core.VehicleSnapshot
 import kr.contest.wakecar.core.WarmUpQuestions
 import kr.contest.wakecar.vehicle.CabinSupport
 import kr.contest.wakecar.vehicle.PleosVehicle
+import kr.contest.wakecar.settings.AppSettings
+import kr.contest.wakecar.settings.Character
+import kr.contest.wakecar.settings.SettingsStore
 
 /** 기상 시각을 정하는 두 가지 방법: 잘 시간(분) 또는 돌아가야 할 시각. */
 data class NapPlan(
@@ -68,7 +77,23 @@ data class UiState(
     val seatRaise: Boolean = false,
     /** 이 차에만 저장한 익명 휴식 기록. */
     val stats: NapStats = NapStats(),
+    /** 캐릭터, 소리 설정. */
+    val settings: AppSettings = AppSettings(),
+    /** 키우기 기록과 지금 벽시계 시각(기분, 졸음 계산용). */
+    val growth: GrowthState = GrowthState(),
+    val wallClock: Long = 0,
+    /** 끝 화면에 보여 줄 이번 낮잠 보상. */
+    val reward: Reward? = null,
+    /** 레벨 업 알림(id가 바뀌면 한 번 보여 준다). */
+    val levelUp: Event<LevelUp>? = null,
+    /** 쓰다듬기 보상 숫자(id가 바뀌면 한 번 띄운다). */
+    val gain: Event<Reward>? = null,
+    /** 설정 화면 미리듣기 상태. */
+    val preview: SoundEngine.Preview? = null,
 )
+
+/** 한 번만 보여 줄 화면 알림. */
+data class Event<T>(val id: Long, val value: T)
 
 /**
  * 세션·차량·소리를 잇는다. 화면이 다시 만들어져도 낮잠이 이어지도록 Application이 들고 있는다.
@@ -78,7 +103,13 @@ class NapController(private val app: Application) {
 
     private val vehicle = PleosVehicle(app)
     private val speaker = Speaker(app)
-    private val alarm = AlarmPlayer()
+    private val store = SettingsStore(app)
+    private val sound = SoundEngine(app) { store.settings.value }
+    private var reward: Reward? = null
+    private var rewardedStart = -1L
+    private var levelUp: Event<LevelUp>? = null
+    private var gain: Event<Reward>? = null
+    private var eventId = 0L
     private val scope = MainScope()
 
     private var demo = false
@@ -104,6 +135,12 @@ class NapController(private val app: Application) {
         vehicle.connect()
         scope.launch { vehicle.snapshot.collect { dispatch(session.onVehicle(now(), it)) } }
         scope.launch { vehicle.support.collect { publish() } }
+        scope.launch {
+            var old = store.settings.value
+            store.settings.collect { new -> sound.onSettingsChanged(old, new); old = new; publish() }
+        }
+        scope.launch { store.growth.collect { publish() } }
+        scope.launch { sound.preview.collect { publish() } }
         scope.launch {
             while (isActive) {
                 delay(TICK_MS)
@@ -176,6 +213,46 @@ class NapController(private val app: Application) {
     /** 깨우는 중 화면을 누르면 등받이만 멈춘다. 알람은 계속 울린다. */
     fun stopSeatRaise() = dispatch(session.stopSeatRaise())
 
+    // ------------------------------------------------------------ 설정, 캐릭터, 키우기
+    fun updateSettings(change: (AppSettings) -> AppSettings) = store.update(change)
+
+    fun selectCharacter(c: Character) = store.update { it.copy(character = c) }
+
+    fun previewMusic() = sound.previewMusic()
+
+    fun previewAlarm() = sound.previewAlarm()
+
+    fun stopPreview() = sound.stopPreview()
+
+    fun cue(name: String) = sound.cue(name)
+
+    /** 캐릭터 쓰다듬기. 하루 10번까지 경험치와 별사탕을 준다. */
+    fun pet(reaction: Int) {
+        sound.cue("pet${reaction % 5}")
+        var r: Reward? = null
+        store.updateGrowth { g -> Growth.pet(g, charKey(), wallNow(), today()).also { r = it.second }.first }
+        r?.let { onReward(it, float = true) }
+    }
+
+    fun claim(q: Quest) = store.updateGrowth { Growth.claim(it, q, today()) }.also { sound.cue("done") }
+
+    fun outfit(o: Outfit) = store.updateGrowth { Growth.outfit(it, charKey(), o) }.also { sound.cue("tap") }
+
+    private fun onReward(r: Reward, float: Boolean) {
+        if (float && (r.exp > 0 || r.coins > 0)) gain = Event(++eventId, r)
+        r.levelUps.lastOrNull()?.let { levelUp = Event(++eventId, it); sound.cue("done") }
+        publish()
+    }
+
+    private fun charKey() = store.settings.value.character.asset
+
+    private fun wallNow() = System.currentTimeMillis()
+
+    private fun today(): String {
+        val c = Calendar.getInstance()
+        return "%04d-%02d-%02d".format(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
+    }
+
     fun reset() {
         session.reset()
         publish()
@@ -192,7 +269,8 @@ class NapController(private val app: Application) {
         effects.forEach { effect ->
             when (effect) {
                 is Effect.Speak -> speaker.speak(effect.text)
-                is Effect.Alarm -> alarm.setLevel(effect.level)
+                // 알람 소리는 SoundEngine이 낮잠 단계(stage)를 보고 직접 정한다.
+                is Effect.Alarm -> Unit
                 else -> vehicle.apply(effect)
             }
         }
@@ -213,6 +291,16 @@ class NapController(private val app: Application) {
                 .putInt("restFilled", stats.restFilled)
                 .apply()
         }
+        // 키우기 보상: 끝난 낮잠마다 한 번
+        if (nap.phase == Phase.DONE && nap.startedAt != rewardedStart) {
+            rewardedStart = nap.startedAt
+            var r: Reward? = null
+            store.updateGrowth { g -> Growth.nap(g, charKey(), nap, wallNow(), today()).also { r = it.second }.first }
+            reward = r
+            r?.let { if (it.levelUps.isNotEmpty()) levelUp = Event(++eventId, it.levelUps.last()) }
+        }
+        if (nap.phase == Phase.SETUP) reward = null
+        sound.update(nap.phase, nap.stage, nap.wakeAt - now, timings.preWakeMs)
         val active = nap.phase != Phase.SETUP && nap.phase != Phase.DONE
         if (active != serviceActive) {
             serviceActive = active
@@ -236,6 +324,14 @@ class NapController(private val app: Application) {
             restSecondsLeft = if (nap.phase == Phase.REST) ceilDiv(nap.restUntil - now, 1000) else 0,
             seatRaise = seatRaise,
             stats = stats,
+            settings = store.settings.value,
+            growth = store.growth.value,
+            // 분 단위로만 바꾼다(매 틱 바뀌면 화면 전체가 다시 그려지고 화면 자동화 도구가 멈춘 상태를 알아채지 못한다)
+            wallClock = wallNow() / 60_000 * 60_000,
+            reward = reward,
+            levelUp = levelUp,
+            gain = gain,
+            preview = sound.preview.value,
         )
     }
 
